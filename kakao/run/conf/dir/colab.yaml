@@ -1,0 +1,8 @@
+data_dir: /content/drive/MyDrive/kaggle/CSIRO/data
+input_dir: /content/drive/MyDrive/kaggle/CSIRO/data
+processed_dir: /content/drive/MyDrive/kaggle/CSIRO/processed_data
+outputs_dir: /content/drive/MyDrive/kaggle/CSIRO/processed_data  # Save outputs to processed_dir
+model_dir: /content/drive/MyDrive/kaggle/CSIRO/model/
+# dicom_series_stored_dir: /content/drive
+# output_npz_dir: /cotent/drive/MyDrive/kaggle/MABe/processed_data
+# src_root_dir: /content/drive/MyDrive/kaggle/MABe/data/unzipped_series

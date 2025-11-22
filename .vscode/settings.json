@@ -24,6 +24,7 @@
       "editor.defaultFormatter": "charliermarsh.ruff",
     },
     "ruff.configuration": "${workspaceFolder}/pyproject.toml",
+    "ruff.lint.enable": false,
     // mypy
     "mypy-type-checker.args": [
       "--config-file=${workspaceFolder}/pyproject.toml"
