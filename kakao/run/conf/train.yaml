@@ -1,0 +1,102 @@
+hydra:
+  job:
+    name: train
+  run:
+    dir: ${dir.outputs_dir}/${hydra.job.name}
+
+defaults:
+  - _self_
+  - dir: colab
+
+# 実験管理
+exp_name: mouse_behavior_baseline
+offline: false   # wandb ログ有効
+seed: 42
+n_splits: 5
+device: auto  # auto, cuda, cpu
+save_submission_df: false  # validation時のsubmission DataFrameをCSVで保存するか
+save_logits: false  # validation時の予測確率をCSVで保存するか（デバッグ用、ファイルサイズ大）
+
+# F-beta評価設定
+fbeta:
+  threshold: 0.5  # 予測の閾値 (sigmoid後の確率値)
+
+# データセット
+dataset:
+  name: original
+
+# モデル設定
+model:
+  name: Spec1D
+  loss: bce  # 'bce', 'focal', or 'combined'
+  model_ckpt: null
+  final_model_path: null
+
+  # Focal Loss parameters (when loss='focal' or 'combined')
+  focal_alpha: 0.25  # Weight for positive examples (0-1)
+  focal_gamma: 2.0   # Focusing parameter (higher = focus more on hard examples)
+
+  # Combined Loss parameters (when loss='combined')
+  loss_types: [bce, focal]  # List of losses to combine
+  loss_weights: [0.5, 0.5]  # Weights for each loss
+
+  # Pos_weight settings (applies to all loss types)
+  pos_weight:
+    mode: dynamic  # 'dynamic' or 'fixed'
+    value: 10.0    # mode='fixed'の場合に使用
+    min: 1.0       # mode='dynamic'の場合のクランプ最小値
+    max: 100.0     # mode='dynamic'の場合のクランプ最大値
+
+# 特徴抽出器設定
+feature_extractor:
+  name: LSTMFeatureExtractor
+  hidden_size: 128
+  num_layers: 2
+  bidirectional: true
+
+# デコーダー設定
+decoder:
+  name: LSTMDecoder
+  hidden_size: 256
+  num_layers: 2
+  dropout: 0.1
+  bidirectional: true
+
+# Augmentation設定
+augmentation:
+  mixup_alpha: 0.0
+  cutmix_alpha: 0.0
+
+# Loss設定
+loss:
+  name: bce
+
+# Trainer／学習ループ設定
+trainer:
+  lr: 1e-3
+  weight_decay: 1e-4
+  optimizer: adamw
+  epochs: 10
+  use_warmup: false
+  warmup_epochs: 3
+  accelerator: auto
+  use_amp: false
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  check_val_every_n_epoch: 1
+  patience: 5
+
+# DataLoader
+train_loader:
+  batch_size: 2
+  shuffle: true
+  num_workers: 0
+  pin_memory: true
+  drop_last: true
+
+val_loader:
+  batch_size: 2
+  shuffle: false
+  num_workers: 0
+  pin_memory: true
+  drop_last: false

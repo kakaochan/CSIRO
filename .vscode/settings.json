@@ -3,7 +3,7 @@
     "editor.rulers": [
       99
     ],
-    "files.autoSave": "off",
+    "files.autoSave": "afterDelay",
     "python.analysis.inlayHints.callArgumentNames": "all",
     "python.analysis.inlayHints.functionReturnTypes": true,
     "python.analysis.inlayHints.variableTypes": true,

@@ -16,8 +16,8 @@ from lightning.pytorch.callbacks import (
     TQDMProgressBar,
 )
 from lightning.pytorch.loggers import WandbLogger
-from src.datamodule import MabeMiceDatamodule
-from src.modelmodule import load_model
+# from src.datamodule import MabeMiceDatamodule
+# from src.modelmodule import load_model
 
 
 logging.basicConfig(
