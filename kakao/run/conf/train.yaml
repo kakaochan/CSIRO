@@ -6,10 +6,10 @@ hydra:
 
 defaults:
   - _self_
-  - dir: colab
+  - dir: local
 
 # 実験管理
-exp_name: mouse_behavior_baseline
+exp_name: csiro_pasture_baseline
 offline: false   # wandb ログ有効
 seed: 42
 n_splits: 5

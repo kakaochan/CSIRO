@@ -16,8 +16,8 @@ from lightning.pytorch.callbacks import (
     TQDMProgressBar,
 )
 from lightning.pytorch.loggers import WandbLogger
-# from src.datamodule import MabeMiceDatamodule
-# from src.modelmodule import load_model
+from src.datamodule import CSIRODataModule
+from src.modelmodule import load_model
 
 
 logging.basicConfig(
@@ -36,7 +36,7 @@ def main(cfg):
 
     pl_logger = WandbLogger(
         name=cfg.exp_name,
-        project="MABe",
+        project="CSIRO",
         entity="gaiji",
         offline=cfg.offline,
         save_dir=cfg.dir.outputs_dir,
@@ -46,7 +46,7 @@ def main(cfg):
 
     for val_fold in range(cfg.n_splits):
         LOGGER.info(f'start training val_fold {val_fold}')
-        datamodule = MabeMiceDatamodule(cfg=cfg, val_fold=val_fold)
+        datamodule = CSIRODataModule(cfg=cfg, val_fold=val_fold)
         model = load_model(cfg=cfg, val_fold=val_fold)
 
         lr_monitor = LearningRateMonitor("epoch")

@@ -1,4 +1,4 @@
-"""Loss function implementations for mouse behavior classification."""
+"""Loss function implementations for CSIRO pasture biomass prediction."""
 
 import torch
 import torch.nn as nn

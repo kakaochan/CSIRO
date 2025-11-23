@@ -53,6 +53,8 @@ dependencies = [
     "openvino-dev[onnx]~=2024.6.0",
     "nncf~=2.15.0",
 	"segmentation-models-pytorch~=0.5.0",
+    "albumentations~=1.4.0",
+    "opencv-python>=4.8.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.10"
