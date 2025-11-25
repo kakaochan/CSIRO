@@ -45,8 +45,11 @@ class CSIRODataset(Dataset):
 
         sample_image = cv2.cvtColor(sample_image, cv2.COLOR_BGR2RGB)
 
+        sample_image = torch.from_numpy(sample_image).permute(2, 0, 1).float() / 255.0
+        target = torch.from_numpy(target).float()
+
         sample = {
-            'sample_img': sample_image,
-            'target': target
+            'sample_img': sample_image,  # (3, H, W)
+            'target': target  # (5,)
         }
         return sample

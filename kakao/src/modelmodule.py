@@ -24,9 +24,6 @@ class CSIROModel(LightningModule):
         self.net = get_model(
             cfg,
             feature_dim=3,
-            n_pairs=1,
-            n_actions=5,
-            num_timesteps=1,
         )
 
     def forward(self, x):
@@ -36,8 +33,8 @@ class CSIROModel(LightningModule):
         x = batch['sample_img']
         y = batch['target']
 
-        outputs = self.net(x)
-        logits = outputs['logits']
+        outputs = self(x)
+        logits = outputs['logits'] #(B, 5)
 
         loss = self.loss_function(logits, y.float())
 
