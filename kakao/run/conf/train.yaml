@@ -28,9 +28,18 @@ dataset:
 # モデル設定
 model:
   name: Spec1D
-  loss: bce  # 'bce', 'focal', or 'combined'
+  loss: mse  # Regression: 'mse', 'l1'/'mae', 'smoothl1'/'huber', 'weighted_mse', 'weighted_smoothl1'
+             # Classification (legacy): 'bce', 'focal', 'combined'
   model_ckpt: null
   final_model_path: null
+
+  # Regression Loss parameters
+  # Target weights for weighted losses (competition R² weights)
+  # [Dry_Green, Dry_Dead, Dry_Clover, GDM, Dry_Total]
+  target_weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+
+  # SmoothL1/Huber loss beta parameter (threshold for L1 vs L2)
+  smoothl1_beta: 1.0
 
   # Focal Loss parameters (when loss='focal' or 'combined')
   focal_alpha: 0.25  # Weight for positive examples (0-1)
@@ -40,7 +49,7 @@ model:
   loss_types: [bce, focal]  # List of losses to combine
   loss_weights: [0.5, 0.5]  # Weights for each loss
 
-  # Pos_weight settings (applies to all loss types)
+  # Pos_weight settings (applies to BCE/Focal loss types only)
   pos_weight:
     mode: dynamic  # 'dynamic' or 'fixed'
     value: 10.0    # mode='fixed'の場合に使用
@@ -49,18 +58,14 @@ model:
 
 # 特徴抽出器設定
 feature_extractor:
-  name: LSTMFeatureExtractor
-  hidden_size: 128
-  num_layers: 2
-  bidirectional: true
+  name: TimmBackboneExtractor
+  model_name: convnext_tiny  # timm model name (e.g., convnext_tiny, resnet50, efficientnet_b0)
+  pretrained: true            # Use ImageNet pretrained weights
 
 # デコーダー設定
 decoder:
-  name: LSTMDecoder
-  hidden_size: 256
-  num_layers: 2
-  dropout: 0.1
-  bidirectional: true
+  name: MultiHeadDecoder
+  dropout: 0.3  # Dropout rate for each head
 
 # Augmentation設定
 augmentation:
@@ -73,7 +78,7 @@ loss:
 
 # Trainer／学習ループ設定
 trainer:
-  lr: 1e-3
+  lr: 1e-5  # Learning rate (lower for pretrained models)
   weight_decay: 1e-4
   optimizer: adamw
   epochs: 10
