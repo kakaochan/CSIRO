@@ -50,6 +50,7 @@ class CSIRODataset(Dataset):
 
         sample = {
             'sample_img': sample_image,  # (3, H, W)
-            'target': target  # (5,)
+            'target': target,  # (5,)
+            'image_id': image_id  # For submission CSV creation
         }
         return sample

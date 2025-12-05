@@ -3,8 +3,10 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, LinearLR, Sequ
 from lightning.pytorch import LightningModule
 from src.models.common import get_model
 from src.loss import get_loss_function
+from src.utils.metrics import weighted_r2_score
 from torch import nn
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 
@@ -44,6 +46,7 @@ class CSIROModel(LightningModule):
     def validation_step(self, batch, batch_idx):
         x = batch['sample_img']
         y = batch['target']
+        image_ids = batch['image_id']
 
         outputs = self.net(x)
         logits = outputs['logits']
@@ -53,7 +56,8 @@ class CSIROModel(LightningModule):
         output_dict = {
             "val_loss": val_loss.detach(),
             "logits": logits.detach(),
-            "target": y.detach()
+            "target": y.detach(),
+            "image_id": image_ids
         }
 
         self.validation_step_outputs.append(output_dict)
@@ -63,14 +67,59 @@ class CSIROModel(LightningModule):
         outputs = self.validation_step_outputs
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
 
+        # Compute R² score
+        all_logits = torch.cat([x["logits"] for x in outputs], dim=0).cpu().numpy()
+        all_targets = torch.cat([x["target"] for x in outputs], dim=0).cpu().numpy()
+        all_image_ids = [img_id for batch in outputs for img_id in batch["image_id"]]
+
+        weighted_r2, individual_r2s = weighted_r2_score(all_targets, all_logits)
+
         self.log(f"val_loss_fold{self.val_fold}", avg_loss, on_epoch=True, prog_bar=True)
+        self.log(f"val_r2_fold{self.val_fold}", weighted_r2, on_epoch=True, prog_bar=True)
+
+        # Log individual R² scores
+        target_names = ['Dry_Green_g', 'Dry_Dead_g', 'Dry_Clover_g', 'GDM_g', 'Dry_Total_g']
+        for i, (name, r2) in enumerate(zip(target_names, individual_r2s)):
+            self.log(f"val_r2_{name}_fold{self.val_fold}", r2, on_epoch=True, prog_bar=False)
+
+        # Save submission CSV if enabled
+        if self.cfg.save_submission_df:
+            self._save_submission_csv(all_image_ids, all_logits, all_targets)
 
         if avg_loss < self.__best_loss:
             self.__best_loss = avg_loss
             torch.save(self.state_dict(), Path(self.cfg.dir.model_dir) / f"{self.cfg.exp_name}_best_loss_fold{self.val_fold}.pth")
-            print(f"Saved best loss model: {avg_loss:.4f}")
+            print(f"Saved best loss model: {avg_loss:.4f}, R²: {weighted_r2:.4f}")
 
         self.validation_step_outputs = []
+
+    def _save_submission_csv(self, image_ids, predictions, targets):
+        """Create submission CSV from validation predictions."""
+        # Target column names in order
+        target_cols = ['Dry_Green_g', 'Dry_Dead_g', 'Dry_Clover_g', 'GDM_g', 'Dry_Total_g']
+
+        # Create rows for submission format
+        rows = []
+        for img_id, pred_vals, true_vals in zip(image_ids, predictions, targets):
+            for col_name, pred_val, true_val in zip(target_cols, pred_vals, true_vals):
+                sample_id = f"{img_id}__{col_name}"
+                rows.append({
+                    'sample_id': sample_id,
+                    'target': pred_val,
+                    'true_target': true_val  # For debugging
+                })
+
+        # Create DataFrame
+        submission_df = pd.DataFrame(rows)
+
+        # Save to outputs directory
+        output_dir = Path(self.cfg.dir.outputs_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        csv_path = output_dir / f"submission_fold{self.val_fold}_epoch{self.current_epoch}.csv"
+        submission_df.to_csv(csv_path, index=False)
+
+        print(f"Saved submission CSV: {csv_path}")
 
     def configure_optimizers(self):
         if self.cfg.trainer.optimizer == "adamw":
