@@ -18,14 +18,6 @@ class Spec1D(nn.Module):
         self.feature_extractor = feature_extractor
         self.decoder = decoder
 
-        # ★★★ channels_fc を削除（1→1は害しかないため） ★★★
-        self.use_channels_fc = False
-
-        # loss params (unused now)
-        self.loss_weight = torch.tensor(cfg.loss.loss_weight) if "loss_weight" in cfg.loss else None
-        self.label_weight = torch.tensor(cfg.label_weight) if "label_weight" in cfg else None
-        self.pos_weight = torch.tensor(cfg.pos_weight) if "pos_weight" in cfg else None
-
     def forward(
         self,
         x: torch.Tensor,
