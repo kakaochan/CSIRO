@@ -15,11 +15,6 @@ seed: 42
 n_splits: 5
 device: auto  # auto, cuda, cpu
 save_submission_df: false  # validation時のsubmission DataFrameをCSVで保存するか
-save_logits: false  # validation時の予測確率をCSVで保存するか（デバッグ用、ファイルサイズ大）
-
-# F-beta評価設定
-fbeta:
-  threshold: 0.5  # 予測の閾値 (sigmoid後の確率値)
 
 # データセット
 dataset:
@@ -41,21 +36,6 @@ model:
   # SmoothL1/Huber loss beta parameter (threshold for L1 vs L2)
   smoothl1_beta: 1.0
 
-  # Focal Loss parameters (when loss='focal' or 'combined')
-  focal_alpha: 0.25  # Weight for positive examples (0-1)
-  focal_gamma: 2.0   # Focusing parameter (higher = focus more on hard examples)
-
-  # Combined Loss parameters (when loss='combined')
-  loss_types: [bce, focal]  # List of losses to combine
-  loss_weights: [0.5, 0.5]  # Weights for each loss
-
-  # Pos_weight settings (applies to BCE/Focal loss types only)
-  pos_weight:
-    mode: dynamic  # 'dynamic' or 'fixed'
-    value: 10.0    # mode='fixed'の場合に使用
-    min: 1.0       # mode='dynamic'の場合のクランプ最小値
-    max: 100.0     # mode='dynamic'の場合のクランプ最大値
-
 # 特徴抽出器設定
 feature_extractor:
   name: TimmBackboneExtractor
@@ -71,10 +51,6 @@ decoder:
 augmentation:
   mixup_alpha: 0.0
   cutmix_alpha: 0.0
-
-# Loss設定
-loss:
-  name: bce
 
 # Trainer／学習ループ設定
 trainer:
