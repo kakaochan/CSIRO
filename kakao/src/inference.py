@@ -131,7 +131,7 @@ def create_submission(predictions, image_ids, output_path):
     Returns:
         submission_df: pandas DataFrame with submission
     """
-    target_names = ['Dry_Green_g', 'Dry_Dead_g', 'Dry_Clover_g', 'GDM_g', 'Dry_Total_g']
+    target_names = ['Dry_Clover_g', 'Dry_Dead_g', 'Dry_Green_g', 'Dry_Total_g', 'GDM_g']
 
     rows = []
     for img_id, pred_vals in zip(image_ids, predictions):
