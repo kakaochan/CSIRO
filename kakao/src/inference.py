@@ -48,7 +48,16 @@ def load_test_models(cfg):
 
         # Load state dict from checkpoint
         state_dict = torch.load(model_path, map_location=device)
-        model.net.load_state_dict(state_dict, strict=False)
+
+        # Remove 'net.' prefix from keys (Lightning saves with this prefix)
+        cleaned_state_dict = {}
+        for key, value in state_dict.items():
+            if key.startswith('net.'):
+                cleaned_state_dict[key[4:]] = value  # Remove 'net.' prefix
+            else:
+                cleaned_state_dict[key] = value
+
+        model.net.load_state_dict(cleaned_state_dict, strict=False)
 
         # Set to eval mode and move to device
         model.eval()
