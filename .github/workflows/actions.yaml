@@ -22,8 +22,11 @@ jobs:
       - name: Install kaggle api
         run: pip install kaggle
 
-      - name: zip source
-        run: zip -r ./upload_kaggle_dir/src.zip ./kakao
+      - name: Prepare files for upload
+        run: |
+          mkdir -p upload_kaggle_dir
+          rm -rf upload_kaggle_dir/kakao
+          cp -r kakao upload_kaggle_dir/
 
       - name: Upload to kaggle
         env:
