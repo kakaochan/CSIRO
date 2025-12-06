@@ -2,11 +2,6 @@
 
 import sys
 from pathlib import Path
-# submit.py の親ディレクトリ（kakao/）を Python パスに追加
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))  # kakao/ をパスに追加
-from src.dataset.dataset import CSIROTestDataset
-from src.inference import load_test_models, run_inference, create_submission
 import hydra
 import pandas as pd
 import torch
@@ -17,6 +12,11 @@ from torch.utils.data import DataLoader
 
 @hydra.main(config_path="conf", config_name="submit", version_base="1.3")
 def main(cfg):
+    # submit.py の親ディレクトリ（kakao/）を Python パスに追加
+    ROOT = Path(__file__).resolve().parent.parent
+    sys.path.append(str(ROOT))  # kakao/ をパスに追加
+    from src.dataset.dataset import CSIROTestDataset
+    from src.inference import load_test_models, run_inference, create_submission
     """Main submission pipeline.
 
     Steps:
