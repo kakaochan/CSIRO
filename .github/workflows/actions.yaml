@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir -p upload_kaggle_dir
           cd kakao
-          zip -r ../upload_kaggle_dir/src.zip .
+          zip -r ../upload_kaggle_dir/kakao.zip .
 
       - name: Upload to kaggle
         env:
