@@ -1,13 +1,18 @@
 """Kaggle submission script for CSIRO pasture biomass prediction."""
 
+import sys
+from pathlib import Path
+# submit.py の親ディレクトリ（kakao/）を Python パスに追加
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT))  # kakao/ をパスに追加
+from src.dataset.dataset import CSIROTestDataset
+from src.inference import load_test_models, run_inference, create_submission
 import hydra
 import pandas as pd
 import torch
-from pathlib import Path
 from torch.utils.data import DataLoader
 
-from src.dataset.dataset import CSIROTestDataset
-from src.inference import load_test_models, run_inference, create_submission
+
 
 
 @hydra.main(config_path="conf", config_name="submit", version_base="1.3")
