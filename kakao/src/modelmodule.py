@@ -88,8 +88,10 @@ class CSIROModel(LightningModule):
 
         if avg_loss < self.__best_loss:
             self.__best_loss = avg_loss
-            torch.save(self.state_dict(), Path(self.cfg.dir.model_dir) / f"{self.cfg.exp_name}_best_loss_fold{self.val_fold}.pth")
-            print(f"Saved best loss model: {avg_loss:.4f}, R²: {weighted_r2:.4f}")
+            model_save_path = Path(self.cfg.dir.model_dir) / self.cfg.exp_name / f"best_loss_fold{self.val_fold}.pth"
+            model_save_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(self.state_dict(), model_save_path)
+            print(f"Saved best loss model: {model_save_path}, Loss: {avg_loss:.4f}, R²: {weighted_r2:.4f}")
 
         self.validation_step_outputs = []
 
