@@ -24,9 +24,7 @@ kaggle:
   # 出力パス（Kaggle working directory: 提出用CSV）
   submission_csv: /kaggle/working/submission.csv
 
-# ===== Model Architecture (学習時の設定と完全一致させる) =====
-model:
-  name: Spec1D
+
 
 feature_extractor:
   name: TimmBackboneExtractor
@@ -36,6 +34,15 @@ feature_extractor:
 decoder:
   name: MultiHeadDecoder
   dropout: 0.3  # 学習時と同じ値
+
+# モデル設定
+model:
+  name: Spec1D
+  loss: mse  # Regression: 'mse', 'l1'/'mae', 'smoothl1'/'huber', 'weighted_mse', 'weighted_smoothl1'
+             # Classification (legacy): 'bce', 'focal', 'combined'
+  model_ckpt: null
+  final_model_path: null
+
 
 # ===== Inference Settings =====
 inference:
@@ -51,3 +58,57 @@ inference:
 #    !python /kaggle/working/CSIRO/kakao/run/submit.py
 # 4. /kaggle/working/submission.csv が生成される
 # 5. Kaggle の Submit ボタンで提出
+
+
+
+# データセット
+dataset:
+  name: original
+
+
+
+  # Regression Loss parameters
+  # Target weights for weighted losses (competition R² weights)
+  # [Dry_Green, Dry_Dead, Dry_Clover, GDM, Dry_Total]
+  target_weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+
+  # SmoothL1/Huber loss beta parameter (threshold for L1 vs L2)
+  smoothl1_beta: 1.0
+
+
+
+
+# Augmentation設定
+augmentation:
+  mixup_alpha: 0.0
+  cutmix_alpha: 0.0
+
+# Trainer／学習ループ設定
+trainer:
+  lr: 1e-5  # Learning rate (lower for pretrained models)
+  weight_decay: 1e-4
+  optimizer: adamw
+  epochs: 10
+  use_warmup: false
+  warmup_epochs: 3
+  accelerator: auto
+  use_amp: false
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  check_val_every_n_epoch: 1
+  patience: 5
+
+# DataLoader
+train_loader:
+  batch_size: 2
+  shuffle: true
+  num_workers: 0
+  pin_memory: true
+  drop_last: true
+
+val_loader:
+  batch_size: 2
+  shuffle: false
+  num_workers: 0
+  pin_memory: true
+  drop_last: false
