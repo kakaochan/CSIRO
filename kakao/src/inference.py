@@ -40,12 +40,12 @@ def load_test_models(cfg):
         model = load_model(model_cfg, val_fold=i, train=False)
 
         # Load state dict
-        state_dict = torch.load(model_path, map_location=cfg.inference.device)
+        device = cfg.inference.device
+        state_dict = torch.load(model_path, map_location=device)
         model.load_state_dict(state_dict)
         model.eval()
 
         # Move to device
-        device = 'cuda' if cfg.inference.device == 'auto' and torch.cuda.is_available() else 'cpu'
         model = model.to(device)
         models.append(model)
 

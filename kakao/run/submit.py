@@ -73,7 +73,7 @@ def main(cfg):
     # ========================================
     print("\n[3/4] Running inference...")
 
-    device = 'cuda' if cfg.inference.device == 'auto' and torch.cuda.is_available() else 'cpu'
+    device = cfg.inference.device
     print(f"  Using device: {device}")
 
     predictions, image_ids = run_inference(

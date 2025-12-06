@@ -47,7 +47,7 @@ model:
 # ===== Inference Settings =====
 inference:
   batch_size: 1  # GPU メモリに応じて調整可能
-  device: auto    # auto: 自動検出, cuda: 強制GPU, cpu: 強制CPU
+  device: cpu    # auto: 自動検出, cuda: 強制GPU, cpu: 強制CPU
   ensemble_folds: true  # true: 5-foldの平均, false: fold0のみ使用
   num_workers: 2  # DataLoaderのワーカー数
 
