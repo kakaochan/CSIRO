@@ -17,35 +17,41 @@ def load_test_models(cfg):
     Returns:
         List of loaded models in eval mode
     """
-    from src.modelmodule import load_model
+    from src.inference_model import CSIROInferenceModel
     from omegaconf import OmegaConf
 
     models = []
     model_dir = Path(cfg.kaggle.model_dir)
 
+    # Determine device
+    if cfg.inference.device == 'auto':
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    else:
+        device = cfg.inference.device
+
+    print(f"Using device: {device}")
+
     for i, model_file in enumerate(cfg.kaggle.model_files):
         model_path = model_dir / model_file
 
-        # Create temporary config for model loading
+        # Create config for model architecture
         model_cfg = OmegaConf.create({
             'model': cfg.model,
             'feature_extractor': cfg.feature_extractor,
             'decoder': cfg.decoder,
-            'device': cfg.inference.device,
             'augmentation': {'mixup_alpha': 0.0, 'cutmix_alpha': 0.0}
         })
 
-        # Load model
+        # Load model (Lightning-free)
         print(f"Loading model {i}: {model_path}")
-        model = load_model(model_cfg, val_fold=i, train=False)
+        model = CSIROInferenceModel(model_cfg)
 
-        # Load state dict
-        device = cfg.inference.device
+        # Load state dict from checkpoint
         state_dict = torch.load(model_path, map_location=device)
-        model.load_state_dict(state_dict)
-        model.eval()
+        model.net.load_state_dict(state_dict, strict=False)
 
-        # Move to device
+        # Set to eval mode and move to device
+        model.eval()
         model = model.to(device)
         models.append(model)
 
