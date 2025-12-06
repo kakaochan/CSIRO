@@ -1,0 +1,53 @@
+# ============================================================
+# Kaggle Submission Configuration for CSIRO Pasture Biomass
+# ============================================================
+
+# ===== Kaggle Paths =====
+kaggle:
+  # Test data paths (公式データセット)
+  test_csv: /kaggle/input/csiro-biomass/test.csv
+  test_images: /kaggle/input/csiro-biomass/test/
+
+  # Trained model paths
+  # TODO: モデルをKaggle Datasetにアップロード後、dataset名を更新してください
+  # 例: /kaggle/input/your-dataset-name/csiro_pasture_baseline/
+  model_dir: /kaggle/input/csiro-first-models
+
+  # モデルファイル名（学習時に保存されるファイル名）
+  model_files:
+    - csiro_pasture_baseline_best_loss_fold0.pth
+    - csiro_pasture_baseline_best_loss_fold1.pth
+    - csiro_pasture_baseline_best_loss_fold2.pth
+    - csiro_pasture_baseline_best_loss_fold3.pth
+    - csiro_pasture_baseline_best_loss_fold4.pth
+
+  # 出力パス（Kaggle working directory: 提出用CSV）
+  submission_csv: /kaggle/working/submission.csv
+
+# ===== Model Architecture (学習時の設定と完全一致させる) =====
+model:
+  name: Spec1D
+
+feature_extractor:
+  name: TimmBackboneExtractor
+  model_name: convnext_tiny  # 学習時と同じモデル
+  pretrained: false  # 推論時はfalse（重みは.pthから読み込む）
+
+decoder:
+  name: MultiHeadDecoder
+  dropout: 0.3  # 学習時と同じ値
+
+# ===== Inference Settings =====
+inference:
+  batch_size: 1  # GPU メモリに応じて調整可能
+  device: auto    # auto: 自動検出, cuda: 強制GPU, cpu: 強制CPU
+  ensemble_folds: true  # true: 5-foldの平均, false: fold0のみ使用
+  num_workers: 2  # DataLoaderのワーカー数
+
+# ===== 使い方 =====
+# 1. モデルファイル(.pth)をKaggle Datasetにアップロード
+# 2. kaggle.model_dir のパスを更新
+# 3. Kaggle Notebookで以下を実行:
+#    !python /kaggle/working/CSIRO/kakao/run/submit.py
+# 4. /kaggle/working/submission.csv が生成される
+# 5. Kaggle の Submit ボタンで提出

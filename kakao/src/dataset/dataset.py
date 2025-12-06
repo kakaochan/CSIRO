@@ -54,3 +54,40 @@ class CSIRODataset(Dataset):
             'image_id': image_id  # For submission CSV creation
         }
         return sample
+
+
+class CSIROTestDataset(Dataset):
+    """Test dataset for Kaggle submission (no targets)"""
+
+    def __init__(self, cfg, test_df):
+        self.cfg = cfg
+        self.test_df = test_df
+        # Extract unique images from test.csv (1 image = 5 rows)
+        self.unique_images = test_df.drop_duplicates(subset=['image_path']).reset_index(drop=True)
+        self.image_dir = Path(cfg.kaggle.test_images)
+
+    def __len__(self):
+        return len(self.unique_images)
+
+    def __getitem__(self, idx):
+        row = self.unique_images.iloc[idx]
+        # Extract image_id from 'test/ID1001187975.jpg' -> 'ID1001187975'
+        image_path = row['image_path']
+        image_id = Path(image_path).stem  # 'ID1001187975'
+
+        jpg_path = self.image_dir / f"{image_id}.jpg"
+        sample_image = cv2.imread(str(jpg_path))
+
+        if sample_image is None:
+            print(f"Warning: 画像が読み込めません: {jpg_path}. 黒画像を返します.")
+            sample_image = np.zeros((1000, 2000, 3), dtype=np.uint8)
+
+        sample_image = cv2.cvtColor(sample_image, cv2.COLOR_BGR2RGB)
+
+        # Same preprocessing as training
+        sample_image = torch.from_numpy(sample_image).permute(2, 0, 1).float() / 255.0
+
+        return {
+            'sample_img': sample_image,  # (3, H, W)
+            'image_id': image_id  # For submission CSV
+        }
