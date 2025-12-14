@@ -15,7 +15,7 @@ def main(cfg):
     # submit.py の親ディレクトリ（kakao/）を Python パスに追加
     ROOT = Path(__file__).resolve().parent.parent
     sys.path.append(str(ROOT))  # kakao/ をパスに追加
-    from src.dataset.dataset import CSIROTestDataset
+    from src.dataset.common import get_test_dataset
     from src.inference import load_test_models, run_inference, create_submission
     """Main submission pipeline.
 
@@ -43,8 +43,8 @@ def main(cfg):
     print(f"   Loaded {len(test_df)} rows from test.csv")
 
     # Create dataset
-    test_dataset = CSIROTestDataset(cfg, test_df)
-    print(f"   Created dataset with {len(test_dataset)} unique images")
+    test_dataset = get_test_dataset(cfg, test_df)
+    print(f"   Created dataset ({cfg.dataset.name}) with {len(test_dataset)} unique images")
 
     # Create dataloader
     test_loader = DataLoader(

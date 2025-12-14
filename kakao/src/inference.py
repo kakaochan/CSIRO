@@ -92,16 +92,28 @@ def run_inference(models, test_loader, device, ensemble=True):
 
     with torch.no_grad():
         for batch in tqdm(test_loader, desc="Inference"):
-            images = batch['sample_img'].to(device)
             image_ids = batch['image_id']
 
-            batch_preds = []
+            # Check if Two-Stream or Original
+            if 'img_left' in batch and 'img_right' in batch:
+                # Two-Stream
+                img_left = batch['img_left'].to(device)
+                img_right = batch['img_right'].to(device)
 
-            # Get predictions from each model
-            for model in models:
-                outputs = model(images)
-                logits = outputs['logits']  # (B, 5)
-                batch_preds.append(logits.cpu().numpy())
+                batch_preds = []
+                for model in models:
+                    outputs = model(img_left, img_right)
+                    logits = outputs['logits']  # (B, 5)
+                    batch_preds.append(logits.cpu().numpy())
+            else:
+                # Original
+                images = batch['sample_img'].to(device)
+
+                batch_preds = []
+                for model in models:
+                    outputs = model(images)
+                    logits = outputs['logits']  # (B, 5)
+                    batch_preds.append(logits.cpu().numpy())
 
             # Ensemble (average) if multiple models
             if ensemble and len(models) > 1:

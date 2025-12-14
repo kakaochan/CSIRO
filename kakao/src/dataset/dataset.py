@@ -151,3 +151,57 @@ class CSIROTestDataset(Dataset):
             'sample_img': sample_image,  # (3, H, W)
             'image_id': image_id  # For submission CSV
         }
+
+
+class CSIROTwoStreamTestDataset(Dataset):
+    """Two-Stream test dataset for Kaggle submission (no targets).
+
+    Splits 2000x1000 images into left and right 1000x1000 patches,
+    resizes each to 768x768 to preserve fine-grained details.
+    """
+
+    def __init__(self, cfg, test_df):
+        self.cfg = cfg
+        self.test_df = test_df
+        # Extract unique images from test.csv (1 image = 5 rows)
+        self.unique_images = test_df.drop_duplicates(subset=['image_path']).reset_index(drop=True)
+        self.image_dir = Path(cfg.kaggle.test_images)
+        self.img_size = 768  # Target resize dimension
+
+    def __len__(self):
+        return len(self.unique_images)
+
+    def __getitem__(self, idx):
+        row = self.unique_images.iloc[idx]
+        # Extract image_id from 'test/ID1001187975.jpg' -> 'ID1001187975'
+        image_path = row['image_path']
+        image_id = Path(image_path).stem  # 'ID1001187975'
+
+        jpg_path = self.image_dir / f"{image_id}.jpg"
+        sample_image = cv2.imread(str(jpg_path))
+
+        if sample_image is None:
+            print(f"Warning: 画像が読み込めません: {jpg_path}. 黒画像を返します.")
+            sample_image = np.zeros((1000, 2000, 3), dtype=np.uint8)
+
+        sample_image = cv2.cvtColor(sample_image, cv2.COLOR_BGR2RGB)
+
+        # Split into left and right patches (1000x1000 each)
+        height, width, _ = sample_image.shape
+        mid_point = width // 2
+        img_left = sample_image[:, :mid_point, :]      # (1000, 1000, 3)
+        img_right = sample_image[:, mid_point:, :]     # (1000, 1000, 3)
+
+        # Resize each patch to 768x768
+        img_left = cv2.resize(img_left, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+        img_right = cv2.resize(img_right, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+
+        # Convert to torch tensors and normalize
+        img_left = torch.from_numpy(img_left).permute(2, 0, 1).float() / 255.0   # (3, 768, 768)
+        img_right = torch.from_numpy(img_right).permute(2, 0, 1).float() / 255.0 # (3, 768, 768)
+
+        return {
+            'img_left': img_left,      # (3, 768, 768)
+            'img_right': img_right,    # (3, 768, 768)
+            'image_id': image_id
+        }

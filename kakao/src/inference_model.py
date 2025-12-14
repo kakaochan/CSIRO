@@ -26,16 +26,17 @@ class CSIROInferenceModel(nn.Module):
             feature_dim=3,
         )
 
-    def forward(self, x):
-        """Forward pass.
+    def forward(self, *args, **kwargs):
+        """Forward pass supporting both Original and Two-Stream.
 
         Args:
-            x: Input tensor (B, 3, H, W)
+            *args: Either (x,) for Original or (img_left, img_right) for Two-Stream
+            **kwargs: Optional keyword arguments
 
         Returns:
             dict with 'logits': (B, 5) predictions
         """
-        return self.net(x)
+        return self.net(*args, **kwargs)
 
     def load_state_dict_from_checkpoint(self, checkpoint_path, device='cpu'):
         """Load weights from a checkpoint file.
