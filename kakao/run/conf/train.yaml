@@ -23,15 +23,15 @@ dataset:
 # モデル設定
 model:
   name: Spec1D
-  loss: mse  # Regression: 'mse', 'l1'/'mae', 'smoothl1'/'huber', 'weighted_mse', 'weighted_smoothl1'
-             # Classification (legacy): 'bce', 'focal', 'combined'
+  loss: weighted_smoothl1  # Regression: 'mse', 'l1'/'mae', 'smoothl1'/'huber', 'weighted_mse', 'weighted_smoothl1'
   model_ckpt: null
   final_model_path: null
 
   # Regression Loss parameters
   # Target weights for weighted losses (competition R² weights)
-  # [Dry_Green, Dry_Dead, Dry_Clover, GDM, Dry_Total]
-  target_weights: [0.1, 0.1, 0.1, 0.2, 0.5]
+  # [Dry_Clover, Dry_Dead, Dry_Green, Dry_Total, GDM] (ThreeTargetDecoder output order)
+  # Clover, Dead are derived from formulas, so weight=0.0
+  target_weights: [0.0, 0.0, 0.1, 0.5, 0.2]
 
   # SmoothL1/Huber loss beta parameter (threshold for L1 vs L2)
   smoothl1_beta: 1.0
@@ -44,7 +44,7 @@ feature_extractor:
 
 # デコーダー設定
 decoder:
-  name: MultiHeadDecoder
+  name: ThreeTargetDecoder
   dropout: 0.3  # Dropout rate for each head
 
 # Augmentation設定

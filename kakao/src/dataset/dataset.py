@@ -56,6 +56,66 @@ class CSIRODataset(Dataset):
         return sample
 
 
+class CSIROTwoStreamDataset(Dataset):
+    """Two-Stream Dataset following REFERENCE implementation.
+
+    Splits 2000x1000 images into left and right 1000x1000 patches,
+    resizes each to 768x768 to preserve fine-grained details.
+    """
+
+    def __init__(self, cfg, val_fold, train_df, meta_df, mode='train'):
+        self.cfg = cfg
+        self.val_fold = val_fold
+        self.train_df = train_df
+        self.meta_df = meta_df
+        self.mode = mode
+        self.image_paths = Path(self.cfg.dir.data_dir) / 'train'
+        self.img_size = 768  # Target resize dimension (REFERENCE uses 768)
+
+    def __len__(self):
+        return len(self.train_df)
+
+    def __getitem__(self, idx):
+        row = self.train_df.iloc[idx]
+        image_id = row['image_id']
+        jpg_path = self.image_paths / f"{image_id}.jpg"
+
+        # Get targets
+        df_subset = self.meta_df.loc[self.meta_df['sample_id'].str.startswith(image_id)]
+        target = df_subset['target'].values
+
+        # Load image (2000x1000)
+        sample_image = cv2.imread(str(jpg_path))
+        if sample_image is None:
+            print(f"Warning: 画像が読み込めません: {jpg_path}. 黒画像を返します.")
+            sample_image = np.zeros((1000, 2000, 3), dtype=np.uint8)
+
+        sample_image = cv2.cvtColor(sample_image, cv2.COLOR_BGR2RGB)
+
+        # Split into left and right patches (1000x1000 each)
+        height, width, _ = sample_image.shape
+        mid_point = width // 2
+        img_left = sample_image[:, :mid_point, :]      # (1000, 1000, 3)
+        img_right = sample_image[:, mid_point:, :]     # (1000, 1000, 3)
+
+        # Resize each patch to 768x768 (preserves more detail than resizing full 2000x1000)
+        img_left = cv2.resize(img_left, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+        img_right = cv2.resize(img_right, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+
+        # Convert to torch tensors and normalize
+        img_left = torch.from_numpy(img_left).permute(2, 0, 1).float() / 255.0   # (3, 768, 768)
+        img_right = torch.from_numpy(img_right).permute(2, 0, 1).float() / 255.0 # (3, 768, 768)
+        target = torch.from_numpy(target).float()
+
+        sample = {
+            'img_left': img_left,      # (3, 768, 768)
+            'img_right': img_right,    # (3, 768, 768)
+            'target': target,          # (5,)
+            'image_id': image_id
+        }
+        return sample
+
+
 class CSIROTestDataset(Dataset):
     """Test dataset for Kaggle submission (no targets)"""
 

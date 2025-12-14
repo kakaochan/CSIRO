@@ -9,8 +9,9 @@ from src.models.decoder.three_target_decoder import ThreeTargetDecoder
 
 from src.models.feature_extractor.timm_backbone import TimmBackboneExtractor
 from src.models.spec1D import Spec1D
+from src.models.spec1D_two_stream import Spec1DTwoStream
 
-MODELS = Union[Spec1D]
+MODELS = Union[Spec1D, Spec1DTwoStream]
 
 
 def get_feature_extractor(cfg: DictConfig, feature_dim: int):
@@ -54,6 +55,18 @@ def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
         feature_extractor = get_feature_extractor(cfg, feature_dim)
         decoder = get_decoder(cfg, n_channels=feature_extractor.out_channels, n_classes=5)
         model = Spec1D(
+            cfg=cfg,
+            feature_extractor=feature_extractor,
+            decoder=decoder,
+            mixup_alpha=cfg.augmentation.mixup_alpha,
+            cutmix_alpha=cfg.augmentation.cutmix_alpha,
+        )
+
+    elif cfg.model.name == "Spec1DTwoStream":
+        feature_extractor = get_feature_extractor(cfg, feature_dim)
+        # Two-Stream: features are concatenated, so decoder receives 2x channels
+        decoder = get_decoder(cfg, n_channels=feature_extractor.out_channels * 2, n_classes=5)
+        model = Spec1DTwoStream(
             cfg=cfg,
             feature_extractor=feature_extractor,
             decoder=decoder,

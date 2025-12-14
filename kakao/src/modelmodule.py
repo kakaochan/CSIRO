@@ -32,10 +32,16 @@ class CSIROModel(LightningModule):
         return self.net(x)
 
     def training_step(self, batch, batch_idx):
-        x = batch['sample_img']
         y = batch['target']
 
-        outputs = self(x)
+        # Check if Two-Stream or Original
+        if 'img_left' in batch and 'img_right' in batch:
+            # Two-Stream
+            outputs = self(batch['img_left'], batch['img_right'])
+        else:
+            # Original
+            outputs = self(batch['sample_img'])
+
         logits = outputs['logits'] #(B, 5)
 
         loss = self.loss_function(logits, y.float())
@@ -44,11 +50,17 @@ class CSIROModel(LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x = batch['sample_img']
         y = batch['target']
         image_ids = batch['image_id']
 
-        outputs = self.net(x)
+        # Check if Two-Stream or Original
+        if 'img_left' in batch and 'img_right' in batch:
+            # Two-Stream
+            outputs = self.net(batch['img_left'], batch['img_right'])
+        else:
+            # Original
+            outputs = self.net(batch['sample_img'])
+
         logits = outputs['logits']
 
         val_loss = self.loss_function(logits, y.float())

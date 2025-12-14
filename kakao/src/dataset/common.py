@@ -1,8 +1,9 @@
-from src.dataset.dataset import CSIRODataset
+from src.dataset.dataset import CSIRODataset, CSIROTwoStreamDataset
 
 
 _DATASET_MAP = {
-    "original":   CSIRODataset
+    "original": CSIRODataset,
+    "two_stream": CSIROTwoStreamDataset
     #増えたらこれ以降に書きましょうね。
 }
 
