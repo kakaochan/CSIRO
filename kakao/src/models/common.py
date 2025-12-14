@@ -5,6 +5,7 @@ from omegaconf import DictConfig
 
 
 from src.models.decoder.multihead_decoder import MultiHeadDecoder
+from src.models.decoder.three_target_decoder import ThreeTargetDecoder
 
 from src.models.feature_extractor.timm_backbone import TimmBackboneExtractor
 from src.models.spec1D import Spec1D
@@ -28,12 +29,17 @@ def get_feature_extractor(cfg: DictConfig, feature_dim: int):
 
 def get_decoder(cfg: DictConfig, n_channels: int, n_classes):
 
-    
+
     if cfg.decoder.name == "MultiHeadDecoder":
         decoder = MultiHeadDecoder(
             input_size=n_channels,
             n_classes=n_classes,
             dropout=cfg.decoder.dropout,
+        )
+    elif cfg.decoder.name == "ThreeTargetDecoder":
+        decoder = ThreeTargetDecoder(
+            cfg=cfg,
+            n_channels=n_channels,
         )
     else:
         raise ValueError(f"Invalid decoder name: {cfg.decoder.name}")
