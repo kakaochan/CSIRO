@@ -71,17 +71,13 @@ class ThreeTargetDecoder(nn.Module):
         """Forward pass.
 
         Args:
-            x: Input features (B, n_channels) or (B, 1, n_channels, 1) from feature extractor
+            x: Input features (B, n_channels) from feature extractor
 
         Returns:
-            dict with 'logits': (B, 5) tensor containing all 5 target predictions
+            (B, 5) tensor containing all 5 target predictions
                 Order: [Dry_Clover_g, Dry_Dead_g, Dry_Green_g, Dry_Total_g, GDM_g]
                 (matches train.csv order for compatibility with existing dataset)
         """
-        # Handle both 2D (B, n_channels) and 4D (B, 1, n_channels, 1) inputs
-        if x.dim() == 4:
-            x = x.squeeze(1).squeeze(-1)  # (B, 1, n_channels, 1) -> (B, n_channels)
-
         # Predict 3 key targets
         pred_total = self.head_total(x)   # (B, 1)
         pred_gdm = self.head_gdm(x)       # (B, 1)
@@ -101,4 +97,4 @@ class ThreeTargetDecoder(nn.Module):
             pred_gdm      # GDM_g (predicted)
         ], dim=1)  # (B, 5)
 
-        return {'logits': logits}
+        return logits  # (B, 5)

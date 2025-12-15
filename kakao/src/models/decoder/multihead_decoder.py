@@ -16,9 +16,6 @@ class MultiHeadDecoder(nn.Module):
         ])
 
     def forward(self, x):
-        # x: (B, 1, n_features, 1) or (B, n_features)
-        if x.dim() == 4:
-            x = x.squeeze(1).squeeze(-1)  # (B, n_features)
-
+        # x: (B, n_features)
         outputs = [head(x) for head in self.heads]  # 5 x (B, 1)
-        return torch.cat(outputs, dim=1).unsqueeze(1)  # (B, 1, 5)
+        return torch.cat(outputs, dim=1)  # (B, 5)

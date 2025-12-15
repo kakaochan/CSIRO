@@ -27,13 +27,11 @@ class Spec1D(nn.Module):
         do_cutmix: bool = False,
     ) -> dict[str, torch.Tensor]:
 
-        # feature_extractor 出力: (B, 1, n_features=768(モデル固有), 1)
+        # feature_extractor 出力: (B, n_features=768)
         x = self.feature_extractor(x)
 
-        # decoder へ入力：(B, 1, n_features=768(モデル固有), 1)
-        logits = self.decoder(x)    # (B, 1, n_classes=5)
-
-        logits = logits.squeeze(1)  # (B, n_classes=5)
+        # decoder へ入力：(B, n_features=768)
+        logits = self.decoder(x)    # (B, n_classes=5)
 
         output = {"logits": logits}
 

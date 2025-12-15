@@ -20,4 +20,4 @@ class TimmBackboneExtractor(nn.Module):
     def forward(self, x):
         # x: (B, 3, H, W)
         features = self.backbone(x)  # (B, num_features)
-        return features.unsqueeze(1).unsqueeze(-1)  # (B, 1, num_features, 1)
+        return features  # (B, num_features)

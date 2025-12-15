@@ -58,8 +58,6 @@ class Spec1DTwoStream(nn.Module):
         combined_features = torch.cat([features_left, features_right], dim=1)  # (B, n_features*2)
 
         # Decoder processes combined features
-        # ThreeTargetDecoder expects (B, n_channels)
-        outputs = self.decoder(combined_features)  # returns {'logits': (B, 5)}
-        logits = outputs['logits']  # (B, 5)
+        logits = self.decoder(combined_features)  # (B, 5)
 
         return {"logits": logits}
