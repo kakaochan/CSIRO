@@ -54,8 +54,8 @@ def main(cfg):
         model_summary = RichModelSummary(max_depth=2)
 
         early_stopping = EarlyStopping(
-            monitor=f"val_loss_fold{val_fold}",  # Monitor validation loss (safer than fbeta)
-            mode="min",
+            monitor=f"val_r2_fold{val_fold}",  # Monitor validation R² score
+            mode="max",
             patience=cfg.trainer.patience,
         )
 

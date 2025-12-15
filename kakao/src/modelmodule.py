@@ -19,7 +19,7 @@ class CSIROModel(LightningModule):
         self.val_fold = val_fold
         self.validation_step_outputs = []
 
-        self.__best_loss = np.inf
+        self.__best_r2 = -np.inf
 
         self.loss_function = get_loss_function(cfg)
 
@@ -107,12 +107,12 @@ class CSIROModel(LightningModule):
         if self.cfg.save_submission_df:
             self._save_submission_csv(all_image_ids, all_logits, all_targets)
 
-        if avg_loss < self.__best_loss:
-            self.__best_loss = avg_loss
-            model_save_path = Path(self.cfg.dir.model_dir) / self.cfg.exp_name / f"best_loss_fold{self.val_fold}.pth"
+        if weighted_r2 > self.__best_r2:
+            self.__best_r2 = weighted_r2
+            model_save_path = Path(self.cfg.dir.model_dir) / self.cfg.exp_name / f"best_r2_fold{self.val_fold}.pth"
             model_save_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save(self.state_dict(), model_save_path)
-            print(f"Saved best loss model: {model_save_path}, Loss: {avg_loss:.4f}, R²: {weighted_r2:.4f}")
+            print(f"Saved best R² model: {model_save_path}, R²: {weighted_r2:.4f}, Loss: {avg_loss:.4f}")
 
         self.validation_step_outputs = []
 
