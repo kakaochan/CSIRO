@@ -52,17 +52,14 @@ class Spec1DTwoStream(nn.Module):
 
         # Combine features by concatenation (doubling the channel dimension)
         # features_left/right: (B, 1, n_features, 1)
-        # combined: (B, 1, n_features*2, 1)
-        combined_features = torch.cat([features_left, features_right], dim=2)
+        # Squeeze and concatenate: (B, n_features) each
+        features_left = features_left.squeeze(1).squeeze(-1)   # (B, n_features)
+        features_right = features_right.squeeze(1).squeeze(-1) # (B, n_features)
+        combined_features = torch.cat([features_left, features_right], dim=1)  # (B, n_features*2)
 
         # Decoder processes combined features
-        logits = self.decoder(combined_features)  # (B, 1, n_classes)
-        logits = logits.squeeze(1)  # (B, n_classes)
+        # ThreeTargetDecoder expects (B, n_channels)
+        outputs = self.decoder(combined_features)  # returns {'logits': (B, 5)}
+        logits = outputs['logits']  # (B, 5)
 
-        output = {"logits": logits}
-
-        if labels is not None:
-            loss = self.loss_fn(logits, labels, masks)
-            output["loss"] = loss
-
-        return output
+        return {"logits": logits}
