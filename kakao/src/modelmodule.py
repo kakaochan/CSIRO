@@ -28,8 +28,17 @@ class CSIROModel(LightningModule):
             feature_dim=3,
         )
 
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, *args, **kwargs):
+        """Forward pass supporting both Original and Two-Stream.
+
+        Args:
+            *args: Either (x,) for Original or (img_left, img_right) for Two-Stream
+            **kwargs: Optional keyword arguments
+
+        Returns:
+            Model outputs
+        """
+        return self.net(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
         y = batch['target']
