@@ -1,0 +1,35 @@
+name: upload to kaggle
+on:
+  push:
+    branches:
+      - develop/kakaochan
+
+jobs:
+  UploadKaggle:
+    name: Upload to kaggle
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.10" ]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install kaggle api
+        run: pip install kaggle
+
+      - name: zip source
+        run: |
+          mkdir -p upload_kaggle_dir
+          cd kakao
+          zip -r ../upload_kaggle_dir/kakao.zip .
+
+      - name: Upload to kaggle
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KaggleUsername }}
+          KAGGLE_KEY: ${{ secrets.KaggleKey }}
+        run: kaggle datasets version -p ./upload_kaggle_dir -m 'update' -d

@@ -1,0 +1,8 @@
+data_dir: /Users/kakaochan/kaggle/CSIRO/kakao/data
+input_dir: /content/drive/MyDrive/kaggle/CSIRO/data/input
+processed_dir: /Users/kakaochan/kaggle/CSIRO/kakao/processed_data
+outputs_dir: outputs
+model_dir: /content/drive/MyDrive/kaggle/CSIRO/model/
+dicom_series_stored_dir: /content/drive
+output_npz_dir: /cotent/drive/MyDrive/kaggle/CSIRO/processed_data
+src_root_dir: /content/drive/MyDrive/kaggle/CSIRO/data/unzipped_series
