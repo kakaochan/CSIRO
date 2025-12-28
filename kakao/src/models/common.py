@@ -10,8 +10,9 @@ from src.models.decoder.three_target_decoder import ThreeTargetDecoder
 from src.models.feature_extractor.timm_backbone import TimmBackboneExtractor
 from src.models.spec1D import Spec1D
 from src.models.spec1D_two_stream import Spec1DTwoStream
+from src.models.v4_model import V4Model
 
-MODELS = Union[Spec1D, Spec1DTwoStream]
+MODELS = Union[Spec1D, Spec1DTwoStream, V4Model]
 
 
 def get_feature_extractor(cfg: DictConfig, feature_dim: int):
@@ -72,6 +73,15 @@ def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
             decoder=decoder,
             mixup_alpha=cfg.augmentation.mixup_alpha,
             cutmix_alpha=cfg.augmentation.cutmix_alpha,
+        )
+
+    elif cfg.model.name == "V4Model":
+        # V4Model is a complete standalone architecture (no separate feature_extractor/decoder)
+        # V4Modelは完全なスタンドアロンアーキテクチャ（feature_extractor/decoderの分離なし）
+        model = V4Model(
+            cfg=cfg,
+            dropout=cfg.model.get('dropout', 0.1),
+            hidden_ratio=cfg.model.get('hidden_ratio', 0.35),
         )
 
     else:
