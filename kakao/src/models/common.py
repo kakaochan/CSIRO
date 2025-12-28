@@ -11,8 +11,9 @@ from src.models.feature_extractor.timm_backbone import TimmBackboneExtractor
 from src.models.spec1D import Spec1D
 from src.models.spec1D_two_stream import Spec1DTwoStream
 from src.models.v4_model import V4Model
+from src.models.mvp_model import TiledFiLMDINO
 
-MODELS = Union[Spec1D, Spec1DTwoStream, V4Model]
+MODELS = Union[Spec1D, Spec1DTwoStream, V4Model, TiledFiLMDINO]
 
 
 def get_feature_extractor(cfg: DictConfig, feature_dim: int):
@@ -82,6 +83,13 @@ def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
             cfg=cfg,
             dropout=cfg.model.get('dropout', 0.1),
             hidden_ratio=cfg.model.get('hidden_ratio', 0.35),
+        )
+
+    elif cfg.model.name == "MVPModel":
+        # MVPModel (TiledFiLMDINO) is also a complete standalone architecture
+        # MVPModel (TiledFiLMDINO) も完全なスタンドアロンアーキテクチャ
+        model = TiledFiLMDINO(
+            backbone_name=cfg.model.get('backbone_name', 'vit_base_patch14_reg4_dinov2')
         )
 
     else:

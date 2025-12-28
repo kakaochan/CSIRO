@@ -6,7 +6,9 @@
       "Bash(uv run python:*)",
       "Bash(python3:*)",
       "Bash(ls:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
