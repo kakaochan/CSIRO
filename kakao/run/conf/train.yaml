@@ -36,6 +36,10 @@ model:
   # SmoothL1/Huber loss beta parameter (threshold for L1 vs L2)
   smoothl1_beta: 1.0
 
+  # V4Model specific parameters
+  dropout: 0.1
+  hidden_ratio: 0.35
+
 # 特徴抽出器設定
 feature_extractor:
   name: TimmBackboneExtractor
