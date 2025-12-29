@@ -233,9 +233,9 @@ class TiledFiLMDINO(BaseDINO):
         clover = torch.clamp(gdm - green, min=0.0)
         dead = torch.clamp(total - gdm, min=0.0)
 
-        # Pack into 5 targets in standard order:
-        # [Dry_Green_g, Dry_Dead_g, Dry_Clover_g, GDM_g, Dry_Total_g]
-        logits = torch.cat([green, dead, clover, gdm, total], dim=1)
+        # Pack into 5 targets in train.csv order (alphabetical):
+        # [Dry_Clover_g, Dry_Dead_g, Dry_Green_g, Dry_Total_g, GDM_g]
+        logits = torch.cat([clover, dead, green, total, gdm], dim=1)
 
         return {
             'logits': logits,

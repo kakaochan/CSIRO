@@ -77,19 +77,20 @@ class WeightedMSELoss(nn.Module):
     """Weighted MSE loss matching competition evaluation metric.
 
     Applies per-target weights matching the competition's R² weights:
-    [0.1, 0.1, 0.1, 0.2, 0.5] for [Dry_Green, Dry_Dead, Dry_Clover, GDM, Dry_Total]
+    [0.1, 0.1, 0.1, 0.5, 0.2] for [Dry_Clover, Dry_Dead, Dry_Green, Dry_Total, GDM]
+    (train.csv alphabetical order)
     """
 
     def __init__(self, target_weights=None):
         """
         Args:
             target_weights: List or tensor of weights for each target.
-                           Default: [0.1, 0.1, 0.1, 0.2, 0.5] (competition weights)
+                           Default: [0.1, 0.1, 0.1, 0.5, 0.2] (competition weights)
         """
         super().__init__()
         if target_weights is None:
-            # Competition weights: [Dry_Green, Dry_Dead, Dry_Clover, GDM, Dry_Total]
-            target_weights = [0.1, 0.1, 0.1, 0.2, 0.5]
+            # Competition weights: [Dry_Clover, Dry_Dead, Dry_Green, Dry_Total, GDM]
+            target_weights = [0.1, 0.1, 0.1, 0.5, 0.2]
         self.register_buffer('target_weights', torch.tensor(target_weights, dtype=torch.float32))
 
     def forward(self, logits, targets, pos_weight=None):
@@ -116,6 +117,7 @@ class WeightedSmoothL1Loss(nn.Module):
     """Weighted SmoothL1 (Huber) loss matching competition evaluation metric.
 
     Combines the robustness of Huber loss with target weighting.
+    Weights: [0.1, 0.1, 0.1, 0.5, 0.2] for [Dry_Clover, Dry_Dead, Dry_Green, Dry_Total, GDM]
     Based on reference implementation strategy.
     """
 
@@ -123,13 +125,13 @@ class WeightedSmoothL1Loss(nn.Module):
         """
         Args:
             target_weights: List or tensor of weights for each target.
-                           Default: [0.1, 0.1, 0.1, 0.2, 0.5] (competition weights)
+                           Default: [0.1, 0.1, 0.1, 0.5, 0.2] (competition weights)
             beta: The threshold at which to change between L1 and L2 loss.
         """
         super().__init__()
         if target_weights is None:
-            # Competition weights: [Dry_Green, Dry_Dead, Dry_Clover, GDM, Dry_Total]
-            target_weights = [0.1, 0.1, 0.1, 0.2, 0.5]
+            # Competition weights: [Dry_Clover, Dry_Dead, Dry_Green, Dry_Total, GDM]
+            target_weights = [0.1, 0.1, 0.1, 0.5, 0.2]
         self.register_buffer('target_weights', torch.tensor(target_weights, dtype=torch.float32))
         self.beta = beta
 

@@ -99,7 +99,7 @@ class CSIROModel(LightningModule):
         self.log(f"val_r2_fold{self.val_fold}", weighted_r2, on_epoch=True, prog_bar=True)
 
         # Log individual R² scores
-        target_names = ['Dry_Green_g', 'Dry_Dead_g', 'Dry_Clover_g', 'GDM_g', 'Dry_Total_g']
+        target_names = ['Dry_Clover_g', 'Dry_Dead_g', 'Dry_Green_g', 'Dry_Total_g', 'GDM_g']
         for i, (name, r2) in enumerate(zip(target_names, individual_r2s)):
             self.log(f"val_r2_{name}_fold{self.val_fold}", r2, on_epoch=True, prog_bar=False)
 
@@ -118,8 +118,8 @@ class CSIROModel(LightningModule):
 
     def _save_submission_csv(self, image_ids, predictions, targets):
         """Create submission CSV from validation predictions."""
-        # Target column names in order
-        target_cols = ['Dry_Green_g', 'Dry_Dead_g', 'Dry_Clover_g', 'GDM_g', 'Dry_Total_g']
+        # Target column names in order (matches train.csv alphabetical order)
+        target_cols = ['Dry_Clover_g', 'Dry_Dead_g', 'Dry_Green_g', 'Dry_Total_g', 'GDM_g']
 
         # Create rows for submission format
         rows = []

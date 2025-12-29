@@ -742,6 +742,13 @@ class V4Model(nn.Module):
         self.cross_gate_left = nn.Linear(self.pyramid_dims[-1], self.pyramid_dims[-1])
         self.cross_gate_right = nn.Linear(self.pyramid_dims[-1], self.pyramid_dims[-1])
 
+        # Auxiliary head for intermediate supervision (stage2 features)
+        # 中間監視用の補助ヘッド（stage2特徴）
+        self.aux_head = nn.Sequential(
+            nn.LayerNorm(self.pyramid_dims[1]),  # pyramid_dims[1] = 512
+            nn.Linear(self.pyramid_dims[1], 5)
+        )
+
         # Softplus for non-negative predictions / 非負予測のためのSoftplus
         self.softplus = nn.Softplus(beta=1.0)
 
@@ -920,4 +927,12 @@ class V4Model(nn.Module):
         # Order: [Dry_Clover_g, Dry_Dead_g, Dry_Green_g, Dry_Total_g, GDM_g]
         logits = torch.cat([clover, dead, green, total, gdm], dim=1)  # (B, 5)
 
-        return {"logits": logits}
+        # Auxiliary prediction from stage2 tokens
+        # stage2トークンからの補助予測
+        aux_tokens = torch.cat([feats_l["stage2_tokens"], feats_r["stage2_tokens"]], dim=1)
+        aux_logits = self.softplus(self.aux_head(aux_tokens.mean(dim=1)))
+
+        return {
+            'logits': logits,
+            'aux': aux_logits,
+        }

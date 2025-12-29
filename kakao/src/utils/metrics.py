@@ -2,9 +2,16 @@ import numpy as np
 # ======== Weighted R² ========
 def weighted_r2_score(y_true: np.ndarray, y_pred: np.ndarray):
     """
-    y_true, y_pred: shape (N, 5)
+    Calculate weighted R² score for CSIRO competition.
+
+    Args:
+        y_true: shape (N, 5) - ground truth targets
+        y_pred: shape (N, 5) - predicted targets
+
+    Order: [Dry_Clover_g, Dry_Dead_g, Dry_Green_g, Dry_Total_g, GDM_g]
+    Weights: [0.1, 0.1, 0.1, 0.5, 0.2]
     """
-    weights = np.array([0.1, 0.1, 0.1, 0.2, 0.5])
+    weights = np.array([0.1, 0.1, 0.1, 0.5, 0.2])
     r2_scores = []
     for i in range(5):
         y_t = y_true[:, i]
