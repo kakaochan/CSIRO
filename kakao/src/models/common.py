@@ -21,7 +21,7 @@ def get_feature_extractor(cfg: DictConfig, feature_dim: int):
     if cfg.feature_extractor.name == "TimmBackboneExtractor":
         feature_extractor = TimmBackboneExtractor(
             model_name=cfg.feature_extractor.model_name,
-            pretrained=cfg.feature_extractor.pretrained,
+            pretrained=cfg.feature_extractor.get('pretrained', True),
             in_channels=feature_dim,
         )
     else:
@@ -83,13 +83,15 @@ def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
             cfg=cfg,
             dropout=cfg.model.get('dropout', 0.1),
             hidden_ratio=cfg.model.get('hidden_ratio', 0.35),
+            pretrained=cfg.model.get('pretrained', True),
         )
 
     elif cfg.model.name == "MVPModel":
         # MVPModel (TiledFiLMDINO) is also a complete standalone architecture
         # MVPModel (TiledFiLMDINO) も完全なスタンドアロンアーキテクチャ
         model = TiledFiLMDINO(
-            backbone_name=cfg.model.get('backbone_name', 'vit_base_patch14_reg4_dinov2')
+            backbone_name=cfg.model.get('backbone_name', 'vit_base_patch14_reg4_dinov2'),
+            pretrained=cfg.model.get('pretrained', True)
         )
 
     else:

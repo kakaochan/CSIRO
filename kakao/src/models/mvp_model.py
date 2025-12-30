@@ -44,7 +44,7 @@ class FiLM(nn.Module):
 class BaseDINO(nn.Module):
     """Base class for DINO-based models."""
 
-    def __init__(self, backbone_name):
+    def __init__(self, backbone_name, pretrained=True):
         super().__init__()
         self.dropout = 0.30
         self.hidden_ratio = 0.25
@@ -54,7 +54,7 @@ class BaseDINO(nn.Module):
         # Create DINO backbone
         self.backbone = timm.create_model(
             backbone_name,
-            pretrained=True,
+            pretrained=pretrained,
             num_classes=0
         )
 
@@ -132,8 +132,8 @@ class TiledFiLMDINO(BaseDINO):
     5. Predict 3 targets (green, clover, dead) and calculate 2 derived targets
     """
 
-    def __init__(self, backbone_name="vit_base_patch14_reg4_dinov2"):
-        super().__init__(backbone_name)
+    def __init__(self, backbone_name="vit_base_patch14_reg4_dinov2", pretrained=True):
+        super().__init__(backbone_name, pretrained=pretrained)
         # FiLM layers for left and right streams
         self.film_left = FiLM(self.feat_dim)
         self.film_right = FiLM(self.feat_dim)

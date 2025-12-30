@@ -658,18 +658,21 @@ class V4Model(nn.Module):
         cfg: DictConfig,
         dropout: float = 0.1,
         hidden_ratio: float = 0.35,
+        pretrained: bool = True,
     ):
         """
         Args:
             cfg: Configuration object / 設定オブジェクト
             dropout: Dropout rate / ドロップアウト率
             hidden_ratio: Hidden dimension ratio for prediction heads / 予測ヘッドの隠れ次元比率
+            pretrained: Whether to use pretrained weights for DINO backbone / DINOバックボーンに事前学習重みを使用するか
         """
         super().__init__()
 
         # Extract config parameters / 設定パラメータを抽出
         self.dropout = dropout
         self.hidden_ratio = hidden_ratio
+        self.pretrained = pretrained
 
         # DINO backbone parameters / DINOバックボーンパラメータ
         self.dino_candidates = cfg.model.get('dino_candidates', [
@@ -768,10 +771,10 @@ class V4Model(nn.Module):
             for gp in ["token", "avg", "__default__"]:
                 try:
                     if gp == "__default__":
-                        m = timm.create_model(name, pretrained=True, num_classes=0)
+                        m = timm.create_model(name, pretrained=self.pretrained, num_classes=0)
                         gp_str = "default"
                     else:
-                        m = timm.create_model(name, pretrained=True, num_classes=0, global_pool=gp)
+                        m = timm.create_model(name, pretrained=self.pretrained, num_classes=0, global_pool=gp)
                         gp_str = gp
 
                     feat = m.num_features
