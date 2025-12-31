@@ -21,9 +21,8 @@ class CSIRODataModule(LightningDataModule):
 
     def setup(self, stage):
         print('datamodule_setup')
-        train_df = pd.read_csv(Path(self.cfg.dir.input_dir)/"train_with_split.csv")
-        meta_df = pd.read_csv(Path(self.cfg.dir.input_dir)/"train.csv")
-        self.train_ds, self.valid_ds = get_datasets(cfg=self.cfg, df=train_df, meta_df=meta_df, val_fold=self.val_fold)
+        df = pd.read_csv(Path(self.cfg.dir.input_dir)/"integrated_train.csv")
+        self.train_ds, self.valid_ds = get_datasets(cfg=self.cfg, df=df, val_fold=self.val_fold)
 
     def train_dataloader(self):
         return DataLoader(self.train_ds, **self.cfg.train_loader)
