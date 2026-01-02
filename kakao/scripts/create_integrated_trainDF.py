@@ -25,7 +25,8 @@ for id in tqdm(unique_id):
         "Dry_Dead_g"    : sub_df.iloc[1]["target"],
         "Dry_Green_g"   : sub_df.iloc[2]["target"],
         "Dry_Total_g"   : sub_df.iloc[3]["target"],
-        "GDM_g"         : sub_df.iloc[4]["target"]
+        "GDM_g"         : sub_df.iloc[4]["target"],
+        "Dead_per_Total": sub_df.iloc[1]["target"] / sub_df.iloc[3]["target"]
     }
     list_of_subdf.append(sub_df_dict)
 new_train_df = pd.DataFrame(list_of_subdf)
