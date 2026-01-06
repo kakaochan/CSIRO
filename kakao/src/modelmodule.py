@@ -30,7 +30,7 @@ class CSIROModel(LightningModule):
 
         # ========= FREEXZE BACKBONE ===========
         if self.cfg.model.freeze_backbone:
-            if self.cfg.model.name == "MVPModel":
+            if self.cfg.model.name == "V4Model":
                 for p in self.net.backbone.parameters():
                     p.requires_grad = False
             else:
