@@ -50,7 +50,8 @@ def get_decoder(cfg: DictConfig, n_channels: int, n_classes):
     return decoder
 
 
-def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
+def get_model(cfg: DictConfig, feature_dim: int,
+              target_mean=None, target_std=None) -> MODELS:
     model: MODELS
 
     if cfg.model.name == "Spec1D":
@@ -84,6 +85,8 @@ def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
             dropout=cfg.model.get('dropout', 0.1),
             hidden_ratio=cfg.model.get('hidden_ratio', 0.35),
             pretrained=cfg.model.get('pretrained', True),
+            target_mean=target_mean,
+            target_std=target_std,
         )
 
     elif cfg.model.name == "MVPModel":
@@ -91,7 +94,9 @@ def get_model(cfg: DictConfig, feature_dim: int, ) -> MODELS:
         # MVPModel (TiledFiLMDINO) も完全なスタンドアロンアーキテクチャ
         model = TiledFiLMDINO(
             backbone_name=cfg.model.get('backbone_name', 'vit_base_patch14_reg4_dinov2'),
-            pretrained=cfg.model.get('pretrained', True)
+            pretrained=cfg.model.get('pretrained', True),
+            target_mean=target_mean,
+            target_std=target_std,
         )
 
     else:

@@ -62,7 +62,7 @@ def main(cfg):
     print("\n[2/4] Loading trained models...")
 
     if cfg.inference.ensemble_folds:
-        models = load_test_models(cfg)
+        models, scalers = load_test_models(cfg)
         print(f"   Loaded {len(models)} models for ensemble")
     else:
         # Load only first model
@@ -80,6 +80,7 @@ def main(cfg):
         models=models,
         test_loader=test_loader,
         device=device,
+        scalers=scalers,
         ensemble=cfg.inference.ensemble_folds
     )
 

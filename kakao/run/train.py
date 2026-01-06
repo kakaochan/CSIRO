@@ -47,7 +47,11 @@ def main(cfg):
     for val_fold in range(cfg.n_splits):
         LOGGER.info(f'start training val_fold {val_fold}')
         datamodule = CSIRODataModule(cfg=cfg, val_fold=val_fold)
-        model = load_model(cfg=cfg, val_fold=val_fold)
+        datamodule.setup(stage='fit')
+
+        # scalerを取得してmodelに渡す
+        scaler = datamodule.scaler
+        model = load_model(cfg=cfg, val_fold=val_fold, scaler=scaler)
 
         lr_monitor = LearningRateMonitor("epoch")
         progress_bar = TQDMProgressBar()

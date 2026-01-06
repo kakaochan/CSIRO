@@ -659,6 +659,8 @@ class V4Model(nn.Module):
         dropout: float = 0.1,
         hidden_ratio: float = 0.35,
         pretrained: bool = True,
+        target_mean=None,
+        target_std=None,
     ):
         """
         Args:
@@ -666,8 +668,20 @@ class V4Model(nn.Module):
             dropout: Dropout rate / ドロップアウト率
             hidden_ratio: Hidden dimension ratio for prediction heads / 予測ヘッドの隠れ次元比率
             pretrained: Whether to use pretrained weights for DINO backbone / DINOバックボーンに事前学習重みを使用するか
+            target_mean: Mean for target normalization (optional) / ターゲット正規化用の平均（オプション）
+            target_std: Std for target normalization (optional) / ターゲット正規化用の標準偏差（オプション）
         """
         super().__init__()
+
+        # Target normalization parameters / ターゲット正規化パラメータ
+        if target_mean is not None and target_std is not None:
+            self.register_buffer('target_mean', torch.tensor(target_mean, dtype=torch.float32))
+            self.register_buffer('target_std', torch.tensor(target_std, dtype=torch.float32))
+            self.use_normalization = True
+        else:
+            self.target_mean = None
+            self.target_std = None
+            self.use_normalization = False
 
         # Extract config parameters / 設定パラメータを抽出
         self.dropout = dropout
@@ -873,14 +887,25 @@ class V4Model(nn.Module):
         # Concatenate left and right / 左右を結合
         f = torch.cat([f_l, f_r], dim=1)  # (B, C*2)
 
-        # Predict three targets (non-negative with softplus)
-        # 3つのターゲットを予測（softplusで非負）
+        # Predict three targets / 3つのターゲットを予測
+        total_out = self.head_total(f)
+        gdm_out = self.head_gdm(f)
+        green_out = self.head_green(f)
 
-        total = self.softplus(self.head_total(f))
-        gdm= self.softplus(self.head_gdm(f))
-        green_pos = self.softplus(self.head_green(f))  # (B, 1)
+        if self.use_normalization:
+            # With normalization: denormalize to real scale
+            # 正規化あり：実スケールに逆正規化
+            total = total_out * self.target_std[3] + self.target_mean[3]
+            gdm = gdm_out * self.target_std[4] + self.target_mean[4]
+            green = green_out * self.target_std[2] + self.target_mean[2]
+        else:
+            # Without normalization: apply softplus for non-negative
+            # 正規化なし：softplusで非負に
+            total = self.softplus(total_out)
+            gdm = self.softplus(gdm_out)
+            green = self.softplus(green_out)
 
-        return total, gdm, green_pos, f
+        return total, gdm, green, f
 
     def forward(
         self,
@@ -915,22 +940,35 @@ class V4Model(nn.Module):
         # Merge and predict / 融合して予測
         total, gdm, green, f_concat = self._merge_heads(feat_l, feat_r)
 
-        # Calculate remaining targets / 残りのターゲットを計算
-        # Clover = GDM - Green (already computed in _merge_heads as clover_pos)
-        # Dead = Total - GDM (already computed in _merge_heads as dead_pos)
-        # But we need to reconstruct them from total, gdm, green for compatibility
-        # しかし、互換性のためにtotal、gdm、greenから再構築する必要があります
+        # Calculate remaining targets in real scale / 実スケールで残りのターゲットを計算
         clover = torch.clamp(gdm - green, min=0.0)  # (B, 1)
         dead = torch.clamp(total - gdm, min=0.0)  # (B, 1)
 
-        # Pack into 5 targets in train.csv order / train.csvの順序で5つのターゲットにパック
-        # Order: [Dry_Clover_g, Dry_Dead_g, Dry_Green_g, Dry_Total_g, GDM_g]
-        logits = torch.cat([clover, dead, green, total, gdm], dim=1)  # (B, 5)
+        if self.use_normalization:
+            # Normalize all targets back to normalized space for loss calculation
+            # 損失計算のため全ターゲットを正規化空間に戻す
+            clover_norm = (clover - self.target_mean[0]) / self.target_std[0]
+            dead_norm = (dead - self.target_mean[1]) / self.target_std[1]
+            green_norm = (green - self.target_mean[2]) / self.target_std[2]
+            total_norm = (total - self.target_mean[3]) / self.target_std[3]
+            gdm_norm = (gdm - self.target_mean[4]) / self.target_std[4]
+
+            logits = torch.cat([clover_norm, dead_norm, green_norm,
+                                total_norm, gdm_norm], dim=1)  # (B, 5) normalized
+        else:
+            # Without normalization: use real scale directly
+            # 正規化なし：実スケールをそのまま使用
+            logits = torch.cat([clover, dead, green, total, gdm], dim=1)  # (B, 5)
 
         # Auxiliary prediction from stage2 tokens
         # stage2トークンからの補助予測
         aux_tokens = torch.cat([feats_l["stage2_tokens"], feats_r["stage2_tokens"]], dim=1)
-        aux_logits = self.softplus(self.aux_head(aux_tokens.mean(dim=1)))
+        aux_out = self.aux_head(aux_tokens.mean(dim=1))
+
+        if self.use_normalization:
+            aux_logits = aux_out  # Already in normalized space
+        else:
+            aux_logits = self.softplus(aux_out)  # Apply softplus for non-negative
 
         return {
             'logits': logits,

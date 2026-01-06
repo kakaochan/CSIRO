@@ -18,7 +18,7 @@ _TEST_DATASET_MAP = {
     #増えたらこれ以降に書きましょうね。
 }
 
-def get_datasets(cfg, df, val_fold):
+def get_datasets(cfg, df, val_fold, scaler=None):
     key = cfg.dataset.name.lower()
     if key not in _DATASET_MAP:
         raise ValueError(f"Unsupported dataset: {key}")
@@ -27,8 +27,8 @@ def get_datasets(cfg, df, val_fold):
 
     DatasetCls = _DATASET_MAP[key]
 
-    train_ds = DatasetCls(cfg, val_fold, train_df, mode='train')
-    valid_ds = DatasetCls(cfg, val_fold, valid_df, mode='valid')
+    train_ds = DatasetCls(cfg, val_fold, train_df, mode='train', scaler=scaler)
+    valid_ds = DatasetCls(cfg, val_fold, valid_df, mode='valid', scaler=scaler)
     return train_ds, valid_ds
 
 

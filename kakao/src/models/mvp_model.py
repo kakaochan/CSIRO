@@ -44,12 +44,22 @@ class FiLM(nn.Module):
 class BaseDINO(nn.Module):
     """Base class for DINO-based models."""
 
-    def __init__(self, backbone_name, pretrained=True):
+    def __init__(self, backbone_name, pretrained=True, target_mean=None, target_std=None):
         super().__init__()
         self.dropout = 0.30
         self.hidden_ratio = 0.25
         self.grid = (2, 2)  # 2x2 tiling
         self.backbone_name = backbone_name
+
+        # Target normalization parameters
+        if target_mean is not None and target_std is not None:
+            self.register_buffer('target_mean', torch.tensor(target_mean, dtype=torch.float32))
+            self.register_buffer('target_std', torch.tensor(target_std, dtype=torch.float32))
+            self.use_normalization = True
+        else:
+            self.target_mean = None
+            self.target_std = None
+            self.use_normalization = False
 
         # Create DINO backbone
         self.backbone = timm.create_model(
@@ -114,9 +124,20 @@ class BaseDINO(nn.Module):
             green: (B, 1) Dry_Green_g prediction
         """
         combined = torch.cat([left_feat, right_feat], dim=1)
-        total = self.softplus(self.head_total(combined))
-        gdm = self.softplus(self.head_gdm(combined))
-        green = self.softplus(self.head_green(combined))
+        total_out = self.head_total(combined)
+        gdm_out = self.head_gdm(combined)
+        green_out = self.head_green(combined)
+
+        if self.use_normalization:
+            # With normalization: denormalize to real scale
+            total = total_out * self.target_std[3] + self.target_mean[3]
+            gdm = gdm_out * self.target_std[4] + self.target_mean[4]
+            green = green_out * self.target_std[2] + self.target_mean[2]
+        else:
+            # Without normalization: apply softplus for non-negative
+            total = self.softplus(total_out)
+            gdm = self.softplus(gdm_out)
+            green = self.softplus(green_out)
 
         return total, gdm, green
 
@@ -132,8 +153,10 @@ class TiledFiLMDINO(BaseDINO):
     5. Predict 3 targets (green, clover, dead) and calculate 2 derived targets
     """
 
-    def __init__(self, backbone_name="vit_base_patch14_reg4_dinov2", pretrained=True):
-        super().__init__(backbone_name, pretrained=pretrained)
+    def __init__(self, backbone_name="vit_base_patch14_reg4_dinov2", pretrained=True,
+                 target_mean=None, target_std=None):
+        super().__init__(backbone_name, pretrained=pretrained,
+                        target_mean=target_mean, target_std=target_std)
         # FiLM layers for left and right streams
         self.film_left = FiLM(self.feat_dim)
         self.film_right = FiLM(self.feat_dim)
@@ -229,13 +252,23 @@ class TiledFiLMDINO(BaseDINO):
         right_feat = self._process_stream(right_img, self.film_right)
         total, gdm, green = self.merge_features(left_feat, right_feat)
 
-        # Calculate derived targets
+        # Calculate derived targets in real scale
         clover = torch.clamp(gdm - green, min=0.0)
         dead = torch.clamp(total - gdm, min=0.0)
 
-        # Pack into 5 targets in train.csv order (alphabetical):
-        # [Dry_Clover_g, Dry_Dead_g, Dry_Green_g, Dry_Total_g, GDM_g]
-        logits = torch.cat([clover, dead, green, total, gdm], dim=1)
+        if self.use_normalization:
+            # Normalize all targets back to normalized space for loss calculation
+            clover_norm = (clover - self.target_mean[0]) / self.target_std[0]
+            dead_norm = (dead - self.target_mean[1]) / self.target_std[1]
+            green_norm = (green - self.target_mean[2]) / self.target_std[2]
+            total_norm = (total - self.target_mean[3]) / self.target_std[3]
+            gdm_norm = (gdm - self.target_mean[4]) / self.target_std[4]
+
+            logits = torch.cat([clover_norm, dead_norm, green_norm,
+                                total_norm, gdm_norm], dim=1)
+        else:
+            # Without normalization: use real scale directly
+            logits = torch.cat([clover, dead, green, total, gdm], dim=1)
 
         return {
             'logits': logits,

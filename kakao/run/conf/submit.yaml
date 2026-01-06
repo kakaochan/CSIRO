@@ -2,6 +2,9 @@
 # Kaggle Submission Configuration for CSIRO Pasture Biomass
 # ============================================================
 
+# ===== Target Normalization =====
+use_target_normalization: true  # StandardScalerでターゲットを正規化（false=従来の実スケール）
+
 # ===== Kaggle Paths =====
 kaggle:
   # Test data paths (公式データセット)
@@ -20,6 +23,14 @@ kaggle:
     - csiro_pasture_baseline_best_loss_fold2.pth
     - csiro_pasture_baseline_best_loss_fold3.pth
     - csiro_pasture_baseline_best_loss_fold4.pth
+
+  # Scalerファイル名（use_target_normalization=trueの場合のみ必要）
+  scaler_files:
+    - scaler_fold0.pkl
+    - scaler_fold1.pkl
+    - scaler_fold2.pkl
+    - scaler_fold3.pkl
+    - scaler_fold4.pkl
 
   # 出力パス（Kaggle working directory: 提出用CSV）
   submission_csv: /kaggle/working/submission.csv

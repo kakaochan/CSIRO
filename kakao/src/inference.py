@@ -6,6 +6,7 @@ import numpy as np
 from pathlib import Path
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import joblib
 
 
 def load_test_models(cfg):
@@ -15,12 +16,13 @@ def load_test_models(cfg):
         cfg: Configuration object with model paths
 
     Returns:
-        List of loaded models in eval mode
+        tuple: (models, scalers) where models is list of loaded models and scalers is list of scalers
     """
     from src.inference_model import CSIROInferenceModel
     from omegaconf import OmegaConf
 
     models = []
+    scalers = []
     model_dir = Path(cfg.kaggle.model_dir)
 
     # Determine device
@@ -31,8 +33,32 @@ def load_test_models(cfg):
 
     print(f"Using device: {device}")
 
+    # Check if target normalization is enabled
+    use_normalization = cfg.get('use_target_normalization', False)
+    if use_normalization:
+        print("Target normalization: ENABLED")
+    else:
+        print("Target normalization: DISABLED (using raw scale)")
+
     for i, model_file in enumerate(cfg.kaggle.model_files):
         model_path = model_dir / model_file
+
+        # Load scaler if normalization is enabled
+        target_mean = None
+        target_std = None
+        scaler = None
+
+        if use_normalization:
+            scaler_file = cfg.kaggle.scaler_files[i]
+            scaler_path = model_dir / scaler_file
+            print(f"Loading scaler {i}: {scaler_path}")
+
+            scaler = joblib.load(scaler_path)
+            target_mean = scaler.mean_
+            target_std = scaler.scale_
+
+            print(f"  Mean: {target_mean}")
+            print(f"  Std:  {target_std}")
 
         # Create config for model architecture
         model_cfg = OmegaConf.create({
@@ -44,7 +70,7 @@ def load_test_models(cfg):
 
         # Load model (Lightning-free)
         print(f"Loading model {i}: {model_path}")
-        model = CSIROInferenceModel(model_cfg)
+        model = CSIROInferenceModel(model_cfg, target_mean=target_mean, target_std=target_std)
 
         # Load state dict from checkpoint
         state_dict = torch.load(model_path, map_location=device)
@@ -63,27 +89,32 @@ def load_test_models(cfg):
         model.eval()
         model = model.to(device)
         models.append(model)
+        scalers.append(scaler)
 
         print(f"  ✓ Loaded successfully on {device}")
 
-    return models
+    return models, scalers
 
 
-def run_inference(models, test_loader, device, ensemble=True):
+def run_inference(models, test_loader, device, scalers=None, ensemble=True):
     """Run inference on test data.
 
     Args:
         models: List of models (for ensemble) or single model
         test_loader: DataLoader for test data
         device: Device to run inference on
+        scalers: List of scalers (for denormalization) or None
         ensemble: Whether to ensemble multiple models
 
     Returns:
-        predictions: numpy array of shape (N, 5) - predictions for all images
+        predictions: numpy array of shape (N, 5) - predictions for all images (real scale)
         image_ids: list of image IDs corresponding to predictions
     """
     if not isinstance(models, list):
         models = [models]
+
+    if scalers is not None and not isinstance(scalers, list):
+        scalers = [scalers]
 
     all_predictions = []
     all_image_ids = []
@@ -101,19 +132,31 @@ def run_inference(models, test_loader, device, ensemble=True):
                 img_right = batch['img_right'].to(device)
 
                 batch_preds = []
-                for model in models:
+                for i, model in enumerate(models):
                     outputs = model(img_left, img_right)
-                    logits = outputs['logits']  # (B, 5)
-                    batch_preds.append(logits.cpu().numpy())
+                    logits = outputs['logits']  # (B, 5) - normalized space if scaler exists
+                    logits_np = logits.cpu().numpy()
+
+                    # Denormalize if scaler exists
+                    if scalers is not None and scalers[i] is not None:
+                        logits_np = scalers[i].inverse_transform(logits_np)  # (B, 5) - real scale
+
+                    batch_preds.append(logits_np)
             else:
                 # Original
                 images = batch['sample_img'].to(device)
 
                 batch_preds = []
-                for model in models:
+                for i, model in enumerate(models):
                     outputs = model(images)
-                    logits = outputs['logits']  # (B, 5)
-                    batch_preds.append(logits.cpu().numpy())
+                    logits = outputs['logits']  # (B, 5) - normalized space if scaler exists
+                    logits_np = logits.cpu().numpy()
+
+                    # Denormalize if scaler exists
+                    if scalers is not None and scalers[i] is not None:
+                        logits_np = scalers[i].inverse_transform(logits_np)  # (B, 5) - real scale
+
+                    batch_preds.append(logits_np)
 
             # Ensemble (average) if multiple models
             if ensemble and len(models) > 1:

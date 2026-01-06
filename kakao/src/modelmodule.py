@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 class CSIROModel(LightningModule):
-    def __init__(self, cfg, val_fold):
+    def __init__(self, cfg, val_fold, scaler=None):
         super().__init__()
         self.save_hyperparameters()
 
@@ -21,11 +21,26 @@ class CSIROModel(LightningModule):
 
         self.__best_r2 = -np.inf
 
+        # Target normalization: scalerから統計量を取得してbufferに保存
+        if scaler is not None:
+            self.register_buffer('target_mean',
+                                torch.tensor(scaler.mean_, dtype=torch.float32))
+            self.register_buffer('target_std',
+                                torch.tensor(scaler.scale_, dtype=torch.float32))
+            self.use_normalization = True
+        else:
+            self.target_mean = None
+            self.target_std = None
+            self.use_normalization = False
+
         self.loss_function = get_loss_function(cfg)
 
+        # モデルに統計量を渡す
         self.net = get_model(
             cfg,
             feature_dim=3,
+            target_mean=self.target_mean.cpu().numpy() if self.use_normalization else None,
+            target_std=self.target_std.cpu().numpy() if self.use_normalization else None,
         )
 
         # ========= FREEXZE BACKBONE ===========
@@ -67,7 +82,7 @@ class CSIROModel(LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        y = batch['target']
+        y = batch['target']  # 正規化済み（scalerがある場合）
         image_ids = batch['image_id']
 
         # Check if Two-Stream or Original
@@ -78,14 +93,23 @@ class CSIROModel(LightningModule):
             # Original
             outputs = self.net(batch['sample_img'])
 
-        logits = outputs['logits']
+        logits = outputs['logits']  # 正規化空間（scalerがある場合）
 
+        # 正規化空間で損失計算
         val_loss = self.loss_function(logits, y.float())
+
+        # R²計算用に逆正規化
+        if self.use_normalization:
+            logits_real = logits * self.target_std + self.target_mean
+            target_real = y * self.target_std + self.target_mean
+        else:
+            logits_real = logits
+            target_real = y
 
         output_dict = {
             "val_loss": val_loss.detach(),
-            "logits": logits.detach(),
-            "target": y.detach(),
+            "logits": logits_real.detach(),  # 実スケール（R²計算用）
+            "target": target_real.detach(),  # 実スケール（R²計算用）
             "image_id": image_ids
         }
 
@@ -227,7 +251,7 @@ class CSIROModel(LightningModule):
         }
 
 
-def load_model(cfg, val_fold, stage='train', train=True):
+def load_model(cfg, val_fold, stage='train', train=True, scaler=None):
     """Load CSIROModel with optional checkpoint loading"""
     if train:
         model_ckpt = getattr(cfg.model, 'model_ckpt', None)
@@ -247,7 +271,7 @@ def load_model(cfg, val_fold, stage='train', train=True):
                 state_dict.pop(k)
 
     if train:
-        model = CSIROModel(cfg=cfg, val_fold=val_fold)
+        model = CSIROModel(cfg=cfg, val_fold=val_fold, scaler=scaler)
         if state_dict is not None:
             if stage == 'train_finetune':
                 keys_to_remove = [k for k in state_dict.keys() if 'decoder' in k]
@@ -257,7 +281,7 @@ def load_model(cfg, val_fold, stage='train', train=True):
             else:
                 model.load_state_dict(state_dict, strict=False)
     else:
-        model = CSIROModel(cfg=cfg, val_fold=val_fold)
+        model = CSIROModel(cfg=cfg, val_fold=val_fold, scaler=scaler)
         if state_dict is not None:
             model.load_state_dict(state_dict)
 

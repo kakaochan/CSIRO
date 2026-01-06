@@ -12,11 +12,13 @@ class CSIROInferenceModel(nn.Module):
     for use in Kaggle environments where Lightning cannot be installed.
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, target_mean=None, target_std=None):
         """Initialize inference model.
 
         Args:
             cfg: Configuration object with model architecture settings
+            target_mean: Mean values for target normalization (from scaler)
+            target_std: Std values for target normalization (from scaler)
         """
         super().__init__()
 
@@ -24,6 +26,8 @@ class CSIROInferenceModel(nn.Module):
         self.net = get_model(
             cfg,
             feature_dim=3,
+            target_mean=target_mean,
+            target_std=target_std,
         )
 
     def forward(self, *args, **kwargs):

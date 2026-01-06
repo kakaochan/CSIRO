@@ -19,12 +19,13 @@ from tqdm import tqdm
 import gc
 
 class CSIRODataset(Dataset):
-    def __init__(self, cfg, val_fold, train_df, mode='train'):
+    def __init__(self, cfg, val_fold, train_df, mode='train', scaler=None):
         self.cfg = cfg
         self.val_fold = val_fold
         self.train_df = train_df
         self.mode = mode
         self.image_paths = Path(self.cfg.dir.data_dir) / 'train'
+        self.scaler = scaler
 
     def __len__(self):
         return len(self.train_df)
@@ -50,11 +51,17 @@ class CSIRODataset(Dataset):
         sample_image = cv2.cvtColor(sample_image, cv2.COLOR_BGR2RGB)
 
         sample_image = torch.from_numpy(sample_image).permute(2, 0, 1).float() / 255.0
-        target = torch.from_numpy(target).float()
+
+        # StandardScalerで正規化
+        if self.scaler is not None:
+            target_norm = self.scaler.transform(target.reshape(1, -1))[0]  # (5,)
+            target = torch.from_numpy(target_norm).float()
+        else:
+            target = torch.from_numpy(target).float()
 
         sample = {
             'sample_img': sample_image,  # (3, H, W)
-            'target': target,  # (5,)
+            'target': target,  # (5,) 正規化済み
             'image_id': image_id  # For submission CSV creation
         }
         return sample
@@ -67,13 +74,14 @@ class CSIROTwoStreamDataset(Dataset):
     resizes each to 768x768 to preserve fine-grained details.
     """
 
-    def __init__(self, cfg, val_fold, train_df, mode='train'):
+    def __init__(self, cfg, val_fold, train_df, mode='train', scaler=None):
         self.cfg = cfg
         self.val_fold = val_fold
         self.train_df = train_df
         self.mode = mode
         self.image_paths = Path(self.cfg.dir.data_dir) / 'train'
         self.img_size = 768
+        self.scaler = scaler
 
     def __len__(self):
         return len(self.train_df)
@@ -112,12 +120,18 @@ class CSIROTwoStreamDataset(Dataset):
         # Convert to torch tensors and normalize
         img_left = torch.from_numpy(img_left).permute(2, 0, 1).float() / 255.0   # (3, 768, 768)
         img_right = torch.from_numpy(img_right).permute(2, 0, 1).float() / 255.0 # (3, 768, 768)
-        target = torch.from_numpy(target).float()
+
+        # StandardScalerで正規化
+        if self.scaler is not None:
+            target_norm = self.scaler.transform(target.reshape(1, -1))[0]  # (5,)
+            target = torch.from_numpy(target_norm).float()
+        else:
+            target = torch.from_numpy(target).float()
 
         sample = {
             'img_left': img_left,      # (3, 768, 768)
             'img_right': img_right,    # (3, 768, 768)
-            'target': target,          # (5,)
+            'target': target,          # (5,) 正規化済み
             'image_id': image_id
         }
         return sample
