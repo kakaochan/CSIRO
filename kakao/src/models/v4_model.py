@@ -737,9 +737,11 @@ class V4Model(nn.Module):
             )
 
         # Three prediction heads / 3つの予測ヘッド
+        self.head_total = head() # total
+        self.head_gdm = head() # GDM
         self.head_green = head()  # Dry_Green_g
-        self.head_clover = head()  # Dry_Clover_g (calculated later)
-        self.head_dead = head()  # Dry_Dead_g (calculated later)
+        # self.head_clover = head()  # Dry_Clover_g (calculated later)
+        # self.head_dead = head()  # Dry_Dead_g (calculated later)
 
         # Gating for left/right fusion / 左右融合のためのゲーティング
         self.cross_gate_left = nn.Linear(self.pyramid_dims[-1], self.pyramid_dims[-1])
@@ -873,15 +875,10 @@ class V4Model(nn.Module):
 
         # Predict three targets (non-negative with softplus)
         # 3つのターゲットを予測（softplusで非負）
-        green_pos = self.softplus(self.head_green(f))  # (B, 1)
-        clover_pos = self.softplus(self.head_clover(f))  # (B, 1)
-        dead_pos = self.softplus(self.head_dead(f))  # (B, 1)
 
-        # Calculate derived targets / 派生ターゲットを計算
-        # GDM = Green + Clover
-        gdm = green_pos + clover_pos  # (B, 1)
-        # Total = GDM + Dead = Green + Clover + Dead
-        total = gdm + dead_pos  # (B, 1)
+        total = self.softplus(self.head_total(f))
+        gdm= self.softplus(self.head_gdm(f))
+        green_pos = self.softplus(self.head_green(f))  # (B, 1)
 
         return total, gdm, green_pos, f
 
