@@ -36,8 +36,9 @@ new_train_df['Sampling_Date_dt'] = pd.to_datetime(new_train_df['Sampling_Date'])
 new_train_df['month'] = new_train_df['Sampling_Date_dt'].dt.month
 new_train_df['strata'] = new_train_df['month'].astype(str) + '_' + new_train_df['State']
 
+seed = 335
 # 5-Fold分割追加（StratifiedGroupKFold: Sampling_Dateでグループ化、月×Stateで層別化）
-sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=seed)
 new_train_df['fold'] = -1
 
 groups = new_train_df['Sampling_Date']
@@ -47,4 +48,5 @@ for fold, (train_idx, val_idx) in enumerate(sgkf.split(new_train_df, y=strata, g
 
 new_train_df.to_csv(output_csv_path, index=False)
 print(f"\nFold distribution:")
+print(f'seed={seed}')
 print(new_train_df['fold'].value_counts().sort_index())
