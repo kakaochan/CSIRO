@@ -73,9 +73,10 @@ class BaseDINO(nn.Module):
             )
 
         # Three prediction heads
+        self.head_total = make_head()
+        self.head_gdm = make_head()
         self.head_green = make_head()
-        self.head_clover = make_head()
-        self.head_dead = make_head()
+
         self.softplus = nn.Softplus(beta=1.0)
 
     def _get_input_size(self, model):
@@ -113,11 +114,10 @@ class BaseDINO(nn.Module):
             green: (B, 1) Dry_Green_g prediction
         """
         combined = torch.cat([left_feat, right_feat], dim=1)
+        total = self.softplus(self.head_total(combined))
+        gdm = self.softplus(self.head_gdm(combined))
         green = self.softplus(self.head_green(combined))
-        clover = self.softplus(self.head_clover(combined))
-        dead = self.softplus(self.head_dead(combined))
-        gdm = green + clover
-        total = gdm + dead
+
         return total, gdm, green
 
 
