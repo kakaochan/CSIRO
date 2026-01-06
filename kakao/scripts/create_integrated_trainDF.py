@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from tqdm import tqdm
 # パス設定
 data_dir = Path(__file__).parent.parent / "data"
@@ -31,12 +31,18 @@ for id in tqdm(unique_id):
     list_of_subdf.append(sub_df_dict)
 new_train_df = pd.DataFrame(list_of_subdf)
 
-# 5-Fold分割追加（GroupKFold: Sampling_Dateでグループ化）
-gkf = GroupKFold(n_splits=5)
+# 月とStateで層別化するための前処理
+new_train_df['Sampling_Date_dt'] = pd.to_datetime(new_train_df['Sampling_Date'])
+new_train_df['month'] = new_train_df['Sampling_Date_dt'].dt.month
+new_train_df['strata'] = new_train_df['month'].astype(str) + '_' + new_train_df['State']
+
+# 5-Fold分割追加（StratifiedGroupKFold: Sampling_Dateでグループ化、月×Stateで層別化）
+sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
 new_train_df['fold'] = -1
 
 groups = new_train_df['Sampling_Date']
-for fold, (train_idx, val_idx) in enumerate(gkf.split(new_train_df, groups=groups)):
+strata = new_train_df['strata']
+for fold, (train_idx, val_idx) in enumerate(sgkf.split(new_train_df, y=strata, groups=groups)):
     new_train_df.loc[val_idx, 'fold'] = fold
 
 new_train_df.to_csv(output_csv_path, index=False)

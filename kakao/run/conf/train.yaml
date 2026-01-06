@@ -22,6 +22,7 @@ dataset:
 
 # モデル設定
 model:
+  freeze_backbone: true
   name: Spec1D
   loss: weighted_smoothl1  # Regression: 'mse', 'l1'/'mae', 'smoothl1'/'huber', 'weighted_mse', 'weighted_smoothl1'
   model_ckpt: null
@@ -63,6 +64,8 @@ trainer:
   weight_decay: 1e-4
   optimizer: adamw
   epochs: 10
+  stage1_epochs: 5
+  stage2_epochs: 20
   use_warmup: false
   warmup_epochs: 3
   accelerator: auto

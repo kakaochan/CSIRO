@@ -28,6 +28,14 @@ class CSIROModel(LightningModule):
             feature_dim=3,
         )
 
+        # ========= FREEXZE BACKBONE ===========
+        if self.cfg.model.freeze_backbone:
+            if self.cfg.model.name == "MVPModel":
+                for p in self.net.backbone.parameters():
+                    p.requires_grad = False
+            else:
+                pass
+
     def forward(self, *args, **kwargs):
         """Forward pass supporting both Original and Two-Stream.
 
@@ -83,6 +91,26 @@ class CSIROModel(LightningModule):
 
         self.validation_step_outputs.append(output_dict)
         return val_loss
+    
+    def freeze_backbone(self):
+        for p in self.net.backbone.parameters():
+            p.requires_grad = False
+
+    def unfreeze_backbone(self):
+        for p in self.net.backbone.parameters():
+            p.requires_grad = True
+
+    def reset_optimizer(self):
+        optimizer = torch.optim.AdamW(
+            params=filter(lambda p: p.requires_grad, self.parameters()),
+            lr = self.cfg.trainer.lr,
+            weight_decay=self.cfg.trainer.weight_decay,
+        )
+        self.trainer.optimizers = [optimizer]
+        self.trainer.lr_schedulers = [] 
+
+    # def on_train_epoch_start(self):
+    #     return super().on_train_epoch_start()
 
     def on_validation_epoch_end(self):
         outputs = self.validation_step_outputs
