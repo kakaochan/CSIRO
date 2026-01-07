@@ -85,7 +85,10 @@ def main(cfg):
         torch.cuda.empty_cache()
         gc.collect()
 
-    pl_logger.experiment.finish()
+    # WandBは自動的に終了されるため、手動でfinish()を呼ぶ必要なし
+    # (Hydra + WandB + Colabの組み合わせで finish() を手動呼び出しすると
+    #  logging callbackとの競合で OSError が発生する可能性がある)
+    # pl_logger.experiment.finish()
 
 
 if __name__ == "__main__":
