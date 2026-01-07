@@ -18,6 +18,7 @@ save_submission_df: false  # validation時のsubmission DataFrameをCSVで保存
 
 # ターゲット正規化
 use_target_normalization: true  # StandardScalerでターゲットを正規化（false=従来の実スケール）
+scaler_path: null  # 既存scalerを使う場合はパスを指定（null=新規作成）
 
 # データセット
 dataset:

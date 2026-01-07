@@ -31,24 +31,37 @@ class CSIRODataModule(LightningDataModule):
 
         if use_normalization:
             print("Target normalization: ENABLED")
-            # Trainデータから統計量を計算（Valは含めない）
-            train_df = df[df['fold'] != self.val_fold]
-            target_cols = ['Dry_Clover_g', 'Dry_Dead_g', 'Dry_Green_g',
-                           'Dry_Total_g', 'GDM_g']
-            train_targets = train_df[target_cols].values  # (N_train, 5)
 
-            # StandardScalerでfit
-            self.scaler = StandardScaler()
-            self.scaler.fit(train_targets)
+            # 既存scalerのパスがあるかチェック
+            scaler_path_config = self.cfg.get('scaler_path', None)
 
-            # scalerを保存（推論時に使用）
-            scaler_dir = Path(self.cfg.dir.model_dir) / self.cfg.exp_name
-            scaler_dir.mkdir(parents=True, exist_ok=True)
-            scaler_path = scaler_dir / f"scaler_fold{self.val_fold}.pkl"
-            joblib.dump(self.scaler, scaler_path)
-            print(f"Saved scaler: {scaler_path}")
-            print(f"  Mean: {self.scaler.mean_}")
-            print(f"  Std:  {self.scaler.scale_}")
+            if scaler_path_config is not None:
+                # Stage 2: 既存scalerをロード
+                scaler_load_path = Path(scaler_path_config)
+                self.scaler = joblib.load(scaler_load_path)
+                print(f"Loaded existing scaler from: {scaler_load_path}")
+                print(f"  Mean: {self.scaler.mean_}")
+                print(f"  Std:  {self.scaler.scale_}")
+            else:
+                # Stage 1: 新規にfit
+                # Trainデータから統計量を計算（Valは含めない）
+                train_df = df[df['fold'] != self.val_fold]
+                target_cols = ['Dry_Clover_g', 'Dry_Dead_g', 'Dry_Green_g',
+                               'Dry_Total_g', 'GDM_g']
+                train_targets = train_df[target_cols].values  # (N_train, 5)
+
+                # StandardScalerでfit
+                self.scaler = StandardScaler()
+                self.scaler.fit(train_targets)
+
+                # scalerを保存（推論時に使用）
+                scaler_dir = Path(self.cfg.dir.model_dir) / self.cfg.exp_name
+                scaler_dir.mkdir(parents=True, exist_ok=True)
+                scaler_path = scaler_dir / f"scaler_fold{self.val_fold}.pkl"
+                joblib.dump(self.scaler, scaler_path)
+                print(f"Saved new scaler to: {scaler_path}")
+                print(f"  Mean: {self.scaler.mean_}")
+                print(f"  Std:  {self.scaler.scale_}")
         else:
             print("Target normalization: DISABLED (using raw scale)")
             self.scaler = None
