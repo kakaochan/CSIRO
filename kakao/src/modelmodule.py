@@ -261,7 +261,12 @@ def load_model(cfg, val_fold, stage='train', train=True, scaler=None):
     if model_ckpt is not None:
         # FOLDプレースホルダーを現在のfold番号で置換
         model_ckpt = model_ckpt.replace('FOLD', str(val_fold))
-        state_dict = torch.load(model_ckpt, map_location=cfg.device)["state_dict"]
+        checkpoint = torch.load(model_ckpt, map_location=cfg.device)
+        # state_dictが直接保存されている場合と、辞書に包まれている場合の両方に対応
+        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = checkpoint
         print(f"loading model from checkpoint: {model_ckpt}")
     else:
         state_dict = None
