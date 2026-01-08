@@ -37,6 +37,8 @@ class CSIRODataModule(LightningDataModule):
 
             if scaler_path_config is not None:
                 # Stage 2: 既存scalerをロード
+                # {fold}プレースホルダーを現在のfold番号で置換
+                scaler_path_config = scaler_path_config.replace('{fold}', str(self.val_fold))
                 scaler_load_path = Path(scaler_path_config)
                 self.scaler = joblib.load(scaler_load_path)
                 print(f"Loaded existing scaler from: {scaler_load_path}")
