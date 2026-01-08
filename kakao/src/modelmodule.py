@@ -259,8 +259,8 @@ def load_model(cfg, val_fold, stage='train', train=True, scaler=None):
         model_ckpt = getattr(cfg.model, 'final_model_path', None)
 
     if model_ckpt is not None:
-        # {fold}プレースホルダーを現在のfold番号で置換
-        model_ckpt = model_ckpt.replace('{fold}', str(val_fold))
+        # FOLDプレースホルダーを現在のfold番号で置換
+        model_ckpt = model_ckpt.replace('FOLD', str(val_fold))
         state_dict = torch.load(model_ckpt, map_location=cfg.device)["state_dict"]
         print(f"loading model from checkpoint: {model_ckpt}")
     else:
