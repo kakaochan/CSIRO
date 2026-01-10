@@ -57,7 +57,7 @@ class CSIRODataset(Dataset):
         if self.scaler is not None:
             target_norm = self.scaler.transform(target.reshape(1, -1))[0]  # (5,)
             target = torch.from_numpy(target_norm).float()
-            if self.cfg.target_ratio:
+            if self.cfg.model.target_ratio:
                 ratio_target = np.array([
                     target_norm[3],
                     row["Dead_per_Total"],
@@ -65,21 +65,21 @@ class CSIRODataset(Dataset):
                 ])
                 ratio_target = torch.from_numpy(ratio_target).float()
         else:
-            if self.cfg.target_ratio:
+            if self.cfg.model.target_ratio:
                 ratio_target = np.array([
                     target[3],
                     row["Dead_per_Total"],
                     row["Green_per_Total"]
                 ])
                 ratio_target = torch.from_numpy(ratio_target).float()
-                target = torch.from_numpy(target).float()
+            target = torch.from_numpy(target).float()
 
         sample = {
             'sample_img': sample_image,  # (3, H, W)
             'target': target,  # (5,) 正規化済み
             'image_id': image_id  # For submission CSV creation
         }
-        if self.cfg.target_ratio:
+        if self.cfg.model.target_ratio:
             sample['ratio_target'] = ratio_target
 
         return sample
@@ -143,7 +143,7 @@ class CSIROTwoStreamDataset(Dataset):
         if self.scaler is not None:
             target_norm = self.scaler.transform(target.reshape(1, -1))[0]  # (5,)
             target = torch.from_numpy(target_norm).float()
-            if self.cfg.target_ratio:
+            if self.cfg.model.target_ratio:
                 ratio_target = np.array([
                     target_norm[3],
                     row["Dead_per_Total"],
@@ -151,7 +151,7 @@ class CSIROTwoStreamDataset(Dataset):
                 ])
                 ratio_target = torch.from_numpy(ratio_target).float()
         else:
-            if self.cfg.target_ratio:
+            if self.cfg.model.target_ratio:
                 ratio_target = np.array([
                     target[3],
                     row["Dead_per_Total"],
@@ -166,7 +166,7 @@ class CSIROTwoStreamDataset(Dataset):
             'target': target,          # (5,) 正規化済み
             'image_id': image_id
         }
-        if self.cfg.target_ratio:
+        if self.cfg.model.target_ratio:
             sample['ratio_target'] = ratio_target
 
         return sample
