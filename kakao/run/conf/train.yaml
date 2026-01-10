@@ -39,6 +39,7 @@ model:
   # Competition R² weights: Clover=0.1, Dead=0.1, Green=0.1, Total=0.5, GDM=0.2
   # For ThreeTargetDecoder: Clover, Dead are derived from formulas, so set weight=0.0
   target_weights: [0.0, 0.0, 0.1, 0.5, 0.2]
+  ratio_target_weights: [0.5, 0.1, 0.1]
 
   # SmoothL1/Huber loss beta parameter (threshold for L1 vs L2)
   smoothl1_beta: 1.0

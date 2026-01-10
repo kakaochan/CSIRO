@@ -2,7 +2,7 @@ import torch
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, LinearLR, SequentialLR, CosineAnnealingLR
 from lightning.pytorch import LightningModule
 from src.models.common import get_model
-from src.loss import get_loss_function
+from src.loss import get_loss_function, WeightedSmoothL1Loss
 from src.utils.metrics import weighted_r2_score
 from torch import nn
 import numpy as np
@@ -33,7 +33,16 @@ class CSIROModel(LightningModule):
             self.target_std = None
             self.use_normalization = False
 
-        self.loss_function = get_loss_function(cfg)
+        if cfg.model.target_ratio:
+            # ratio用の重みを使用
+            ratio_weights = getattr(cfg.model, 'ratio_target_weights', [0.5, 0.1, 0.1])
+            self.loss_function = WeightedSmoothL1Loss(
+                target_weights=ratio_weights,
+                beta=getattr(cfg.model, 'smoothl1_beta', 1.0)
+            )
+        else:
+            # 従来の5次元重み
+            self.loss_function = get_loss_function(cfg)
 
         # モデルに統計量を渡す
         self.net = get_model(
@@ -76,7 +85,14 @@ class CSIROModel(LightningModule):
 
         logits = outputs['logits'] #(B, 5)
 
-        loss = self.loss_function(logits, y.float())
+        # training_step
+        if self.cfg.model.target_ratio and 'ratio_target' in outputs:
+            ratio_y = batch['ratio_target']
+            ratio_logits = outputs['ratio_target']
+
+            loss = self.loss_function(ratio_logits, ratio_y.float())
+        else:
+            loss = self.loss_function(logits, y.float())
 
         self.log(f"train_loss_fold{self.val_fold}", loss, on_epoch=True, prog_bar=True)
         return loss
@@ -96,7 +112,12 @@ class CSIROModel(LightningModule):
         logits = outputs['logits']  # 正規化空間（scalerがある場合）
 
         # 正規化空間で損失計算
-        val_loss = self.loss_function(logits, y.float())
+        if self.cfg.model.target_ratio and 'ratio_target' in outputs:
+            ratio_y = batch['ratio_target']
+            ratio_logits = outputs['ratio_target']
+            val_loss = self.loss_function(ratio_logits, ratio_y.float())
+        else:
+            val_loss = self.loss_function(logits, y.float())
 
         # R²計算用に逆正規化
         if self.use_normalization:
