@@ -26,6 +26,7 @@ dataset:
 
 # モデル設定
 model:
+  target_ratio: false
   freeze_backbone: true
   name: Spec1D
   loss: weighted_smoothl1  # Regression: 'mse', 'l1'/'mae', 'smoothl1'/'huber', 'weighted_mse', 'weighted_smoothl1'

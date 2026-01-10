@@ -749,6 +749,8 @@ class V4Model(nn.Module):
                 nn.Dropout(dropout),
                 nn.Linear(hidden, 1),
             )
+        
+        self.target_ratio = cfg.model.target_ratio 
 
         # Three prediction heads / 3つの予測ヘッド
         self.head_total = head() # total
@@ -860,6 +862,40 @@ class V4Model(nn.Module):
 
         return feat, feat_maps
 
+    def _merge_heads_for_ratio(
+        self, f_l: torch.Tensor, f_r: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        g_l = torch.sigmoid(self.cross_gate_left(f_r))
+        g_r = torch.sigmoid(self.cross_gate_right(f_l))
+        f_l = f_l * g_l
+        f_r = f_r * g_r
+        f = torch.cat([f_l, f_r], dim=1)  # (B, C*2)
+
+        # Predict three targets / 3つのターゲットを予測
+        total_out = self.head_total(f)    # 正規化後のTotalを出力する想定
+        dead_ratio = self.head_gdm(f)     # Totalに対するDeadの比率を出力する想定(0~1スケール)
+        green_ratio = self.head_green(f) # Totalに対するGreenの比率を出力する想定(0~1スケール)
+
+        if self.use_normalization:
+            # With normalization: denormalize to real scale
+            # 正規化あり：実スケールに逆正規化
+            total = total_out * self.target_std[3] + self.target_mean[3] # Total全量
+            dead = total * dead_ratio # Dead実スケール
+            green = total * green_ratio # Green実スケール
+            gdm = torch.clamp(input=total - dead, min=0.0)
+            clover = torch.clamp(input=gdm - green, min=0.0)
+
+        else:
+            # Without normalization: apply softplus for non-negative
+            # 正規化なし：softplusで非負に
+            total = self.softplus(total_out)
+            dead = total * dead_ratio # Dead実スケール
+            green = total * green_ratio # Green実スケール
+            gdm = torch.clamp(input=total - dead, min=0.0)
+            clover = torch.clamp(input=gdm - green, min=0.0)
+
+        return clover, dead, green, total, gdm, total_out, dead_ratio, green_ratio #左5つは実スケールで、total_outは正規化空間、ratioは割合
+    
     def _merge_heads(
         self, f_l: torch.Tensor, f_r: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -938,39 +974,76 @@ class V4Model(nn.Module):
         feat_r, feats_r = self._half_forward(img_right)  # (B, pyramid_dims[-1])
 
         # Merge and predict / 融合して予測
-        total, gdm, green, f_concat = self._merge_heads(feat_l, feat_r)
+        if self.target_ratio == True:
+            clover, dead, green, total, gdm, total_out, dead_ratio, green_ratio = self._merge_heads_for_ratio(feat_l, feat_r)
+            ratio_target = torch.cat([total_out, dead_ratio, green_ratio], dim=1)  # (B, 3)
 
-        # Calculate remaining targets in real scale / 実スケールで残りのターゲットを計算
-        clover = torch.clamp(gdm - green, min=0.0)  # (B, 1)
-        dead = torch.clamp(total - gdm, min=0.0)  # (B, 1)
 
-        if self.use_normalization:
-            # Normalize all targets back to normalized space for loss calculation
-            # 損失計算のため全ターゲットを正規化空間に戻す
-            clover_norm = (clover - self.target_mean[0]) / self.target_std[0]
-            dead_norm = (dead - self.target_mean[1]) / self.target_std[1]
-            green_norm = (green - self.target_mean[2]) / self.target_std[2]
-            total_norm = (total - self.target_mean[3]) / self.target_std[3]
-            gdm_norm = (gdm - self.target_mean[4]) / self.target_std[4]
+            if self.use_normalization:
+                # Normalize all targets back to normalized space for loss calculation
+                # 損失計算のため全ターゲットを正規化空間に戻す
+                clover_norm = (clover - self.target_mean[0]) / self.target_std[0]
+                dead_norm = (dead - self.target_mean[1]) / self.target_std[1]
+                green_norm = (green - self.target_mean[2]) / self.target_std[2]
+                total_norm = (total - self.target_mean[3]) / self.target_std[3]
+                gdm_norm = (gdm - self.target_mean[4]) / self.target_std[4]
 
-            logits = torch.cat([clover_norm, dead_norm, green_norm,
-                                total_norm, gdm_norm], dim=1)  # (B, 5) normalized
+                logits = torch.cat([clover_norm, dead_norm, green_norm,
+                                    total_norm, gdm_norm], dim=1)  # (B, 5) normalized
+            else:
+                # 正規化なし：実スケールをそのまま使用
+                logits = torch.cat([clover, dead, green, total, gdm], dim=1)  # (B, 5)
+
+            # stage2トークンからの補助予測
+            aux_tokens = torch.cat([feats_l["stage2_tokens"], feats_r["stage2_tokens"]], dim=1)
+            aux_out = self.aux_head(aux_tokens.mean(dim=1))
+            if self.use_normalization:
+                aux_logits = aux_out  # Already in normalized space
+            else:
+                aux_logits = self.softplus(aux_out)  # Apply softplus for non-negative
+
+            model_output = {
+                    'logits': logits,
+                    'aux': aux_logits,
+                    'ratio_target': ratio_target,
+                }
+
         else:
-            # Without normalization: use real scale directly
-            # 正規化なし：実スケールをそのまま使用
-            logits = torch.cat([clover, dead, green, total, gdm], dim=1)  # (B, 5)
+            total, gdm, green, f_concat = self._merge_heads(feat_l, feat_r)
 
-        # Auxiliary prediction from stage2 tokens
-        # stage2トークンからの補助予測
-        aux_tokens = torch.cat([feats_l["stage2_tokens"], feats_r["stage2_tokens"]], dim=1)
-        aux_out = self.aux_head(aux_tokens.mean(dim=1))
+            # Calculate remaining targets in real scale / 実スケールで残りのターゲットを計算
+            clover = torch.clamp(gdm - green, min=0.0)  # (B, 1)
+            dead = torch.clamp(total - gdm, min=0.0)  # (B, 1)
 
-        if self.use_normalization:
-            aux_logits = aux_out  # Already in normalized space
-        else:
-            aux_logits = self.softplus(aux_out)  # Apply softplus for non-negative
+            if self.use_normalization:
+                # Normalize all targets back to normalized space for loss calculation
+                # 損失計算のため全ターゲットを正規化空間に戻す
+                clover_norm = (clover - self.target_mean[0]) / self.target_std[0]
+                dead_norm = (dead - self.target_mean[1]) / self.target_std[1]
+                green_norm = (green - self.target_mean[2]) / self.target_std[2]
+                total_norm = (total - self.target_mean[3]) / self.target_std[3]
+                gdm_norm = (gdm - self.target_mean[4]) / self.target_std[4]
 
-        return {
-            'logits': logits,
-            'aux': aux_logits,
-        }
+                logits = torch.cat([clover_norm, dead_norm, green_norm,
+                                    total_norm, gdm_norm], dim=1)  # (B, 5) normalized
+            else:
+                # Without normalization: use real scale directly
+                # 正規化なし：実スケールをそのまま使用
+                logits = torch.cat([clover, dead, green, total, gdm], dim=1)  # (B, 5)
+
+            # Auxiliary prediction from stage2 tokens
+            # stage2トークンからの補助予測
+            aux_tokens = torch.cat([feats_l["stage2_tokens"], feats_r["stage2_tokens"]], dim=1)
+            aux_out = self.aux_head(aux_tokens.mean(dim=1))
+
+            if self.use_normalization:
+                aux_logits = aux_out  # Already in normalized space
+            else:
+                aux_logits = self.softplus(aux_out)  # Apply softplus for non-negative
+
+            model_output = {
+                    'logits': logits,
+                    'aux': aux_logits,
+                }           
+    
+        return model_output
