@@ -44,6 +44,13 @@ class CSIRODataModule(LightningDataModule):
                 print(f"Loaded existing scaler from: {scaler_load_path}")
                 print(f"  Mean: {self.scaler.mean_}")
                 print(f"  Std:  {self.scaler.scale_}")
+
+                # 現在のexp_nameディレクトリにもコピー保存（実験管理用）
+                scaler_dir = Path(self.cfg.dir.model_dir) / self.cfg.exp_name
+                scaler_dir.mkdir(parents=True, exist_ok=True)
+                scaler_copy_path = scaler_dir / f"scaler_fold{self.val_fold}.pkl"
+                joblib.dump(self.scaler, scaler_copy_path)
+                print(f"Copied scaler to: {scaler_copy_path}")
             else:
                 # Stage 1: 新規にfit
                 # Trainデータから統計量を計算（Valは含めない）
