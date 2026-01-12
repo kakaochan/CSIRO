@@ -26,6 +26,14 @@ class CSIRODataModule(LightningDataModule):
         print('datamodule_setup')
         df = pd.read_csv(Path(self.cfg.dir.input_dir)/"integrated_train.csv")
 
+        # state_onlyの場合はstate_fold列を使用
+        if self.cfg.model.get('state_only', False):
+            # state_fold列の値をfold列に上書き
+            df['fold'] = df['state_fold']
+            print(f"Using state_fold column for Train/Val split (State classification mode)")
+        else:
+            print(f"Using fold column for Train/Val split (standard mode)")
+
         # Configで正規化の有効/無効を制御
         use_normalization = self.cfg.get('use_target_normalization', True)
 

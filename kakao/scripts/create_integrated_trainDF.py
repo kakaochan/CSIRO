@@ -49,7 +49,25 @@ strata = new_train_df['strata']
 for fold, (train_idx, val_idx) in enumerate(sgkf.split(new_train_df, y=strata, groups=groups)):
     new_train_df.loc[val_idx, 'fold'] = fold
 
+# State分類用の80/20分割（state_fold列）
+state_seed = 131
+sgkf_state = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=state_seed)
+new_train_df['state_fold'] = -1  # 全てTrainで初期化
+
+groups_state = new_train_df['Sampling_Date']
+strata_state = new_train_df['State']  # Stateのみで層別化
+for fold, (train_idx, val_idx) in enumerate(sgkf_state.split(new_train_df, y=strata_state, groups=groups_state)):
+    if fold == 4:  # 最後の1つをValに
+        new_train_df.loc[val_idx, 'state_fold'] = 0
+    # 他は-1（Train）のまま
+
 new_train_df.to_csv(output_csv_path, index=False)
-print(f"\nFold distribution:")
+print(f"\nFold distribution (バイオマス用):")
 print(f'seed={seed}')
 print(new_train_df['fold'].value_counts().sort_index())
+
+print(f"\nState_fold distribution (State分類用):")
+print(f'state_seed={state_seed}')
+print(new_train_df['state_fold'].value_counts().sort_index())
+print(f"\nState distribution in state_fold=0 (Val):")
+print(new_train_df[new_train_df['state_fold']==0]['State'].value_counts())

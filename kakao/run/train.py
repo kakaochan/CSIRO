@@ -57,9 +57,17 @@ def main(cfg):
         progress_bar = TQDMProgressBar()
         model_summary = RichModelSummary(max_depth=2)
 
+        # state_onlyの場合はState精度を監視
+        if cfg.model.get('state_only', False):
+            monitor_metric = f"val_StateAcc_fold{val_fold}"
+            monitor_mode = "max"
+        else:
+            monitor_metric = f"val_r2_fold{val_fold}"
+            monitor_mode = "max"
+
         early_stopping = EarlyStopping(
-            monitor=f"val_r2_fold{val_fold}",  # Monitor validation R² score
-            mode="max",
+            monitor=monitor_metric,
+            mode=monitor_mode,
             patience=cfg.trainer.patience,
         )
 
