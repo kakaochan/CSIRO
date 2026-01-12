@@ -19,7 +19,7 @@ class CSIROModel(LightningModule):
         self.val_fold = val_fold
         self.validation_step_outputs = []
 
-        self.__best_r2 = -np.inf
+        self.__best_metric = -np.inf
 
         # Target normalization: scalerから統計量を取得してbufferに保存
         if scaler is not None:
@@ -43,6 +43,9 @@ class CSIROModel(LightningModule):
         else:
             # 従来の5次元重み
             self.loss_function = get_loss_function(cfg)
+
+        if cfg.model.target_state:
+            self.state_loss_func = nn.CrossEntropyLoss()
 
         # モデルに統計量を渡す
         self.net = get_model(
@@ -94,6 +97,13 @@ class CSIROModel(LightningModule):
         else:
             loss = self.loss_function(logits, y.float())
 
+        if 'state_logits' in outputs and 'state_target' in batch:
+            state_logits = outputs['state_logits'] #(B, 3)
+            state_target = batch['state_target'] #(B,)
+            state_loss = self.state_loss_func(state_logits, state_target)
+            loss += state_loss
+            self.log(f'train_StateLoss_fold{self.val_fold}', state_loss, on_epoch=True, prog_bar=True)
+
         self.log(f"train_loss_fold{self.val_fold}", loss, on_epoch=True, prog_bar=True)
         return loss
 
@@ -119,6 +129,14 @@ class CSIROModel(LightningModule):
         else:
             val_loss = self.loss_function(logits, y.float())
 
+      # State損失計算 + 保存
+        if 'state_logits' in outputs and 'state_target' in batch:
+            state_logits = outputs['state_logits']  # (B, 3)
+            state_target = batch['state_target']    # (B,)
+            state_loss = self.state_loss_func(state_logits, state_target)
+            val_loss += state_loss
+            self.log(f'val_StateLoss_fold{self.val_fold}', state_loss, on_epoch=True, prog_bar=True)
+
         # R²計算用に逆正規化
         if self.use_normalization:
             logits_real = logits * self.target_std + self.target_mean
@@ -133,6 +151,11 @@ class CSIROModel(LightningModule):
             "target": target_real.detach(),  # 実スケール（R²計算用）
             "image_id": image_ids
         }
+
+        # State予測を保存（正誤率計算用）
+        if 'state_logits' in outputs and 'state_target' in batch:
+            output_dict["state_logits"] = state_logits.detach()  # (B, 3)
+            output_dict["state_target"] = state_target.detach()  # (B,)
 
         self.validation_step_outputs.append(output_dict)
         return val_loss
@@ -180,12 +203,38 @@ class CSIROModel(LightningModule):
         if self.cfg.save_submission_df:
             self._save_submission_csv(all_image_ids, all_logits, all_targets)
 
-        if weighted_r2 > self.__best_r2:
-            self.__best_r2 = weighted_r2
-            model_save_path = Path(self.cfg.dir.model_dir) / self.cfg.exp_name / f"best_r2_fold{self.val_fold}.pth"
-            model_save_path.parent.mkdir(parents=True, exist_ok=True)
-            torch.save(self.state_dict(), model_save_path)
-            print(f"Saved best R² model: {model_save_path}, R²: {weighted_r2:.4f}, Loss: {avg_loss:.4f}")
+        # State分類の精度計算
+        if outputs[0].get("state_logits") is not None:
+            all_state_logits = torch.cat([x["state_logits"] for x in outputs], dim=0)
+            all_state_targets = torch.cat([x["state_target"] for x in outputs], dim=0)
+
+            # 予測クラスを取得（argmax）
+            state_preds = all_state_logits.argmax(dim=1)
+
+            # Accuracy計算
+            state_acc = (state_preds == all_state_targets).float().mean().item()
+
+            # ログ出力
+            self.log(f"val_StateAcc_fold{self.val_fold}", state_acc, on_epoch=True, prog_bar=True)
+            print(f"State Classification Accuracy: {state_acc:.4f}")
+
+        # モデル保存
+        if self.cfg.model.get('state_only', False):
+            # State精度基準
+            if state_acc > self.__best_metric:
+                self.__best_metric = state_acc
+                model_save_path = Path(self.cfg.dir.model_dir) / self.cfg.exp_name / f"best_stateacc_fold{self.val_fold}.pth"
+                model_save_path.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(self.state_dict(), model_save_path)
+                print(f"Saved best State model: {model_save_path}, StateAcc: {state_acc:.4f}, Loss: {avg_loss:.4f}")
+        else:
+            # R²基準（従来通り）
+            if weighted_r2 > self.__best_metric:
+                self.__best_metric = weighted_r2
+                model_save_path = Path(self.cfg.dir.model_dir) / self.cfg.exp_name / f"best_r2_fold{self.val_fold}.pth"
+                model_save_path.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(self.state_dict(), model_save_path)
+                print(f"Saved best R² model: {model_save_path}, R²: {weighted_r2:.4f}, Loss: {avg_loss:.4f}")
 
         self.validation_step_outputs = []
 

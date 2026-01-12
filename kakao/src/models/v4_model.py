@@ -750,7 +750,20 @@ class V4Model(nn.Module):
                 nn.Linear(hidden, 1),
             )
         
-        self.target_ratio = cfg.model.target_ratio 
+        def state_head():
+            return nn.Sequential(
+                nn.Linear(combined, hidden),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden, 3),
+            )            
+        
+        self.target_ratio = cfg.model.target_ratio
+        self.target_state = cfg.model.target_state
+
+        # Stateを予測対象とする場合は、State用のヘッドを用意
+        if self.target_state:
+            self.head_state = state_head()
 
         # Three prediction heads / 3つの予測ヘッド
         self.head_total = head() # total
@@ -942,6 +955,20 @@ class V4Model(nn.Module):
             green = self.softplus(green_out)
 
         return total, gdm, green, f
+    
+    def _merge_heads_for_state(
+        self, f_l: torch.Tensor, f_r: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        g_l = torch.sigmoid(self.cross_gate_left(f_r))
+        g_r = torch.sigmoid(self.cross_gate_right(f_l))
+        f_l = f_l * g_l
+        f_r = f_r * g_r
+        f = torch.cat([f_l, f_r], dim=1)  # (B, C*2)
+
+        # stateを予測
+        state_logits = self.head_state(f) #(B,3)
+        return state_logits
+
 
     def forward(
         self,
@@ -1044,6 +1071,10 @@ class V4Model(nn.Module):
             model_output = {
                     'logits': logits,
                     'aux': aux_logits,
-                }           
-    
+                }
+            
+        if self.target_state:
+            state_logits = self._merge_heads_for_state(feat_l, feat_r)
+            model_output['state_logits'] = state_logits
+
         return model_output

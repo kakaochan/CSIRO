@@ -169,6 +169,9 @@ class CSIROTwoStreamDataset(Dataset):
         if self.cfg.model.target_ratio:
             sample['ratio_target'] = ratio_target
 
+        if self.cfg.model.target_state:
+            sample['state_target'] = torch.tensor(row['state_target'], dtype=torch.long)
+
         return sample
 
 
