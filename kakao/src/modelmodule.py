@@ -218,6 +218,27 @@ class CSIROModel(LightningModule):
             self.log(f"val_StateAcc_fold{self.val_fold}", state_acc, on_epoch=True, prog_bar=True)
             print(f"State Classification Accuracy: {state_acc:.4f}")
 
+            # 予測結果の詳細表示
+            print(f"\n=== State Prediction Details (Fold {self.val_fold}) ===")
+            print(f"Total samples: {len(state_preds)}")
+
+            # クラスごとの予測数と正解数
+            state_names = ['NSW', 'WA', 'Other']
+            for i, name in enumerate(state_names):
+                pred_count = (state_preds == i).sum().item()
+                target_count = (all_state_targets == i).sum().item()
+                correct = ((state_preds == i) & (all_state_targets == i)).sum().item()
+                print(f"Class {i} ({name}): Predicted={pred_count}, Actual={target_count}, Correct={correct}")
+
+            # Confusion matrix (簡易版)
+            print("\nConfusion Matrix (rows=actual, cols=predicted):")
+            for i in range(3):
+                row = []
+                for j in range(3):
+                    count = ((all_state_targets == i) & (state_preds == j)).sum().item()
+                    row.append(f"{count:3d}")
+                print(f"  {state_names[i]:5s}: [{' '.join(row)}]")
+
         # モデル保存
         if self.cfg.model.get('state_only', False):
             # State精度基準
