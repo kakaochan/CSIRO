@@ -755,8 +755,8 @@ class V4Model(nn.Module):
                 nn.Linear(combined, hidden),
                 nn.GELU(),
                 nn.Dropout(dropout),
-                nn.Linear(hidden, 3),
-            )            
+                nn.Linear(hidden, 2),  # 2クラス: WA, Other
+            )
         
         self.target_ratio = cfg.model.target_ratio
         self.target_state = cfg.model.target_state

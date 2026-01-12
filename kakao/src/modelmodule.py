@@ -45,7 +45,9 @@ class CSIROModel(LightningModule):
             self.loss_function = get_loss_function(cfg)
 
         if cfg.model.target_state:
-            self.state_loss_func = nn.CrossEntropyLoss()
+            # Class weights for imbalanced data (WA vs Other)
+            class_weights = torch.tensor([8.0, 1.0])  # [WA, Other]
+            self.state_loss_func = nn.CrossEntropyLoss(weight=class_weights)
 
         # モデルに統計量を渡す
         self.net = get_model(
@@ -223,7 +225,7 @@ class CSIROModel(LightningModule):
             print(f"Total samples: {len(state_preds)}")
 
             # クラスごとの予測数と正解数
-            state_names = ['NSW', 'WA', 'Other']
+            state_names = ['WA', 'Other']
             for i, name in enumerate(state_names):
                 pred_count = (state_preds == i).sum().item()
                 target_count = (all_state_targets == i).sum().item()
@@ -232,9 +234,9 @@ class CSIROModel(LightningModule):
 
             # Confusion matrix (簡易版)
             print("\nConfusion Matrix (rows=actual, cols=predicted):")
-            for i in range(3):
+            for i in range(2):
                 row = []
-                for j in range(3):
+                for j in range(2):
                     count = ((all_state_targets == i) & (state_preds == j)).sum().item()
                     row.append(f"{count:3d}")
                 print(f"  {state_names[i]:5s}: [{' '.join(row)}]")

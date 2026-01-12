@@ -29,7 +29,7 @@ for id in tqdm(unique_id):
         "Dead_per_Total": sub_df.iloc[1]["target"] / sub_df.iloc[3]["target"],
         "Green_per_Total": sub_df.iloc[2]['target'] / sub_df.iloc[3]['target'],
         'Clover_per_Total': sub_df.iloc[0]['target'] / sub_df.iloc[3]['target'],
-        'state_target': 0 if sub_df.iloc[0]["State"] == 'NSW' else (1 if sub_df.iloc[0]["State"] == 'WA' else 2),
+        'state_target': 0 if sub_df.iloc[0]["State"] == 'WA' else 1,  # 0=WA, 1=Other
     }
     list_of_subdf.append(sub_df_dict)
 new_train_df = pd.DataFrame(list_of_subdf)
