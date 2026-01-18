@@ -215,14 +215,19 @@ def run_inference(cfg, models, test_loader, device, scalers=None, ensemble=True,
             
             if cfg.postprocess.enabled:
                 confidence_threshold = cfg.postprocess.confidence_threshold
+                state_names = ['NSW', 'WA', 'Other']
                 for b in range(batch_pred.shape[0]):
-                    if state_pred[b] == 0 and state_confidence[b] > confidence_threshold:
-                        # NSWかつ高確信度の場合の処理
-                        batch_pred[b] = apply_nsw_correction(batch_pred[b])
+                    pred_state = state_names[state_pred[b]]
+                    conf = state_confidence[b].item()
 
-                    if state_pred[b] == 1 and state_confidence[b] > confidence_threshold:
-                        # WAかつこう各進度の場合の処理
+                    if state_pred[b] == 0 and state_confidence[b] > confidence_threshold:
+                        batch_pred[b] = apply_nsw_correction(batch_pred[b])
+                        print(f"  {image_ids[b]}: {pred_state} ({conf:.2f}) → NSW補正適用")
+                    elif state_pred[b] == 1 and state_confidence[b] > confidence_threshold:
                         batch_pred[b] = apply_wa_correction(batch_pred[b])
+                        print(f"  {image_ids[b]}: {pred_state} ({conf:.2f}) → WA補正適用")
+                    else:
+                        print(f"  {image_ids[b]}: {pred_state} ({conf:.2f}) → 補正なし")
 
             all_predictions.append(batch_pred)
             all_image_ids.extend(image_ids)
