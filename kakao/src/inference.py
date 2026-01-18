@@ -7,6 +7,7 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import joblib
+import torch.nn.functional as F
 
 
 def load_test_models(cfg):
@@ -95,8 +96,47 @@ def load_test_models(cfg):
 
     return models, scalers
 
+def load_state_model(cfg):
+    from src.inference_model import CSIROInferenceModel
+    from omegaconf import OmegaConf
 
-def run_inference(models, test_loader, device, scalers=None, ensemble=True):
+    # Determine device
+    if cfg.inference.device == 'auto':
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    else:
+        device = cfg.inference.device
+    print(f"Using device: {device}")
+
+    state_model_path = cfg.postprocess.state_model_path
+
+    # State model用のconfig（target_stateを強制的にtrue）
+    model_cfg = OmegaConf.create(cfg.model)
+    model_cfg.target_state = True
+
+    state_model_cfg = OmegaConf.create({
+        'model': model_cfg,
+        'feature_extractor': cfg.feature_extractor,
+        'decoder': cfg.decoder,
+        'augmentation': {'mixup_alpha': 0.0, 'cutmix_alpha': 0.0}
+    })
+    state_model = CSIROInferenceModel(state_model_cfg, )
+    state_state_dict = torch.load(state_model_path, map_location=device)
+
+    cleaned_state_state_dict = {}
+    for key, value in state_state_dict.items():
+        if key.startswith('net.'):
+            cleaned_state_state_dict[key[4:]] = value  # Remove 'net.' prefix
+        else:
+            cleaned_state_state_dict[key] = value       
+    state_model.net.load_state_dict(cleaned_state_state_dict, strict=False)
+    state_model.eval()
+    state_model = state_model.to(device)
+    print(f"  ✓ Loaded state model successfully on {device}")
+
+    return state_model
+
+
+def run_inference(cfg, models, test_loader, device, scalers=None, ensemble=True, state_model=None):
     """Run inference on test data.
 
     Args:
@@ -131,6 +171,15 @@ def run_inference(models, test_loader, device, scalers=None, ensemble=True):
                 img_left = batch['img_left'].to(device)
                 img_right = batch['img_right'].to(device)
 
+                if cfg.postprocess.enabled:
+                    state_outputs = state_model(img_left, img_right)
+                    state_logits = state_outputs['state_logits'] # (B, 3) NSW,WA,Other
+                    # 確信度（確率）を取得
+                    state_probs = F.softmax(state_logits, dim=1)  # (B, 3) 各クラスの確率 (合計=1)
+                    # クラス予測と確信度
+                    state_pred = state_probs.argmax(dim=1)  # (B,) 予測クラス 0NSW/1WA/2Other
+                    state_confidence = state_probs.max(dim=1).values  # (B,) 最大確率（確信度）
+
                 batch_preds = []
                 for i, model in enumerate(models):
                     outputs = model(img_left, img_right)
@@ -160,9 +209,20 @@ def run_inference(models, test_loader, device, scalers=None, ensemble=True):
 
             # Ensemble (average) if multiple models
             if ensemble and len(models) > 1:
-                batch_pred = np.mean(batch_preds, axis=0)  # (B, 5)
+                batch_pred = np.mean(batch_preds, axis=0)  # (B, 5) Clover, Dead, Green, Total, GDM
             else:
                 batch_pred = batch_preds[0]
+            
+            if cfg.postprocess.enabled:
+                confidence_threshold = cfg.postprocess.confidence_threshold
+                for b in range(batch_pred.shape[0]):
+                    if state_pred[b] == 0 and state_confidence[b] > confidence_threshold:
+                        # NSWかつ高確信度の場合の処理
+                        batch_pred[b] = apply_nsw_correction(batch_pred[b])
+
+                    if state_pred[b] == 1 and state_confidence[b] > confidence_threshold:
+                        # WAかつこう各進度の場合の処理
+                        batch_pred[b] = apply_wa_correction(batch_pred[b])
 
             all_predictions.append(batch_pred)
             all_image_ids.extend(image_ids)
@@ -208,3 +268,19 @@ def create_submission(predictions, image_ids, output_path):
     print(submission_df.head(10))
 
     return submission_df
+
+def apply_nsw_correction(sample_preds):  # (5,)
+    """NSW用の後処理: Cloverを0にし、Total/GDMを調整"""
+    original_clover = sample_preds[0]
+    sample_preds[0] = 0                      # Clover = 0
+    sample_preds[3] -= original_clover       # Total -= Clover
+    sample_preds[4] -= original_clover       # GDM -= Clover
+    return sample_preds
+
+
+def apply_wa_correction(sample_preds):  # (5,)
+    """WA用の後処理: Deadを0にし、Totalを調整"""
+    original_dead = sample_preds[1]
+    sample_preds[1] = 0                      # Dead = 0
+    sample_preds[3] -= original_dead         # Total -= Dead
+    return sample_preds

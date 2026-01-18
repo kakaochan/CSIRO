@@ -16,7 +16,7 @@ def main(cfg):
     ROOT = Path(__file__).resolve().parent.parent
     sys.path.append(str(ROOT))  # kakao/ をパスに追加
     from src.dataset.common import get_test_dataset
-    from src.inference import load_test_models, run_inference, create_submission
+    from src.inference import load_test_models, run_inference, create_submission, load_state_model
     """Main submission pipeline.
 
     Steps:
@@ -67,6 +67,11 @@ def main(cfg):
     else:
         # Load only first model
         raise NotImplementedError("Single model inference not implemented yet")
+    
+    if cfg.postprocess.enabled:
+        state_model = load_state_model(cfg)
+    else:
+        state_model = None
 
     # ========================================
     # 3. Run inference
@@ -77,11 +82,13 @@ def main(cfg):
     print(f"  Using device: {device}")
 
     predictions, image_ids = run_inference(
+        cfg=cfg,
         models=models,
         test_loader=test_loader,
         device=device,
         scalers=scalers,
-        ensemble=cfg.inference.ensemble_folds
+        ensemble=cfg.inference.ensemble_folds,
+        state_model=state_model,
     )
 
     print(f"   Predictions shape: {predictions.shape}")

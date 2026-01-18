@@ -41,26 +41,3 @@ class CSIROInferenceModel(nn.Module):
             dict with 'logits': (B, 5) predictions
         """
         return self.net(*args, **kwargs)
-
-    def load_state_dict_from_checkpoint(self, checkpoint_path, device='cpu'):
-        """Load weights from a checkpoint file.
-
-        Args:
-            checkpoint_path: Path to .pth file
-            device: Device to load weights to
-
-        Returns:
-            self (for chaining)
-        """
-        state_dict = torch.load(checkpoint_path, map_location=device)
-
-        # Remove 'net.' prefix if present (from Lightning checkpoints)
-        cleaned_state_dict = {}
-        for key, value in state_dict.items():
-            if key.startswith('net.'):
-                cleaned_state_dict[key[4:]] = value  # Remove 'net.' prefix
-            else:
-                cleaned_state_dict[key] = value
-
-        self.net.load_state_dict(cleaned_state_dict, strict=False)
-        return self

@@ -4,6 +4,11 @@
 
 # ===== Target Normalization =====
 use_target_normalization: true  # StandardScalerでターゲットを正規化（false=従来の実スケール）
+postprocess:
+  enabled: false
+  state_model_path: null
+  strategy: null
+  confidence_threshold: 0.6
 
 # ===== Kaggle Paths =====
 kaggle:
