@@ -10,6 +10,24 @@ import pandas as pd
 from pathlib import Path
 
 
+def mixup_data(x, y, alpha):
+    """Mixup: バッチ内の2サンプルをブレンド"""
+    lam = np.random.beta(alpha, alpha)
+    batch_size = y.size(0)
+    index = torch.randperm(batch_size, device=y.device)
+
+    if isinstance(x, tuple):  # Two-Stream
+        mixed_x = (
+            lam * x[0] + (1 - lam) * x[0][index],
+            lam * x[1] + (1 - lam) * x[1][index]
+        )
+    else:
+        mixed_x = lam * x + (1 - lam) * x[index]
+
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
 class CSIROModel(LightningModule):
     def __init__(self, cfg, val_fold, scaler=None):
         super().__init__()
@@ -81,27 +99,42 @@ class CSIROModel(LightningModule):
         y = batch['target']
 
         # Check if Two-Stream or Original
-        if 'img_left' in batch and 'img_right' in batch:
-            # Two-Stream
-            outputs = self(batch['img_left'], batch['img_right'])
+        is_two_stream = 'img_left' in batch and 'img_right' in batch
+        if is_two_stream:
+            x = (batch['img_left'], batch['img_right'])
         else:
-            # Original
-            outputs = self(batch['sample_img'])
+            x = batch['sample_img']
 
-        logits = outputs['logits'] #(B, 5)
+        # Mixup判定
+        aug_cfg = self.cfg.augmentation
+        mixup_alpha = aug_cfg.get('mixup_alpha', 0.0)
+        mixup_prob = aug_cfg.get('mixup_prob', 0.0)
+        use_mixup = mixup_alpha > 0 and np.random.rand() < mixup_prob
 
-        # training_step
+        if use_mixup:
+            x, y_a, y_b, lam = mixup_data(x, y, mixup_alpha)
+
+        # Forward
+        if is_two_stream:
+            outputs = self(x[0], x[1])
+        else:
+            outputs = self(x)
+
+        logits = outputs['logits']  # (B, 5)
+
+        # Loss計算
         if self.cfg.model.target_ratio and 'ratio_target' in outputs:
             ratio_y = batch['ratio_target']
             ratio_logits = outputs['ratio_target']
-
             loss = self.loss_function(ratio_logits, ratio_y.float())
+        elif use_mixup:
+            loss = lam * self.loss_function(logits, y_a.float()) + (1 - lam) * self.loss_function(logits, y_b.float())
         else:
             loss = self.loss_function(logits, y.float())
 
         if 'state_logits' in outputs and 'state_target' in batch:
-            state_logits = outputs['state_logits'] #(B, 3)
-            state_target = batch['state_target'] #(B,)
+            state_logits = outputs['state_logits']  # (B, 3)
+            state_target = batch['state_target']  # (B,)
             state_loss = self.state_loss_func(state_logits, state_target)
             loss += state_loss
             self.log(f'train_StateLoss_fold{self.val_fold}', state_loss, on_epoch=True, prog_bar=True)
