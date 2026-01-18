@@ -9,6 +9,8 @@ postprocess:
   state_model_path: null
   strategy: null
   confidence_threshold: 0.6
+  nsw_correction: true
+  wa_correction: true
 
 # ===== Kaggle Paths =====
 kaggle:

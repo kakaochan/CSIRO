@@ -220,10 +220,10 @@ def run_inference(cfg, models, test_loader, device, scalers=None, ensemble=True,
                     pred_state = state_names[state_pred[b]]
                     conf = state_confidence[b].item()
 
-                    if state_pred[b] == 0 and state_confidence[b] > confidence_threshold:
+                    if cfg.postprocess.nsw_correction and state_pred[b] == 0 and state_confidence[b] > confidence_threshold:
                         batch_pred[b] = apply_nsw_correction(batch_pred[b])
                         print(f"  {image_ids[b]}: {pred_state} ({conf:.2f}) → NSW補正適用")
-                    elif state_pred[b] == 1 and state_confidence[b] > confidence_threshold:
+                    elif cfg.postprocess.wa_correction and state_pred[b] == 1 and state_confidence[b] > confidence_threshold:
                         batch_pred[b] = apply_wa_correction(batch_pred[b])
                         print(f"  {image_ids[b]}: {pred_state} ({conf:.2f}) → WA補正適用")
                     else:
