@@ -63,8 +63,27 @@ decoder:
 
 # Augmentation設定
 augmentation:
+  # Mixup (バッチ単位 - ModelModule側で適用)
   mixup_alpha: 0.0
+  mixup_prob: 0.0
   cutmix_alpha: 0.0
+
+  # 幾何変換 (Dataset側で適用)
+  hflip_prob: 0.5
+  vflip_prob: 0.5
+
+  # 色調変換 (Dataset側で適用)
+  brightness_prob: 0.3
+  brightness_limit: 20  # ±20の範囲で明度変更
+  saturation_prob: 0.0  # デフォルトOFF
+  saturation_limit: 20
+  hue_prob: 0.0  # デフォルトOFF（色の意味が壊れるリスク）
+  hue_limit: 20
+
+  # RandomErasing
+  random_erasing_prob: 0.3
+  random_erasing_scale_min: 0.02
+  random_erasing_scale_max: 0.2
 
 # Trainer／学習ループ設定
 trainer:

@@ -101,6 +101,63 @@ class CSIROTwoStreamDataset(Dataset):
         self.img_size = 768
         self.scaler = scaler
 
+        # Augmentation (training時のみ)
+        if self.mode == 'train':
+            self.transform = self.build_train_transform()
+        else:
+            self.transform = None
+
+    def build_train_transform(self):
+        """学習用のAugmentationを構築"""
+        aug_cfg = self.cfg.augmentation
+        transforms = []
+
+        # 幾何変換
+        if aug_cfg.get('hflip_prob', 0) > 0:
+            transforms.append(A.HorizontalFlip(p=aug_cfg.hflip_prob))
+        if aug_cfg.get('vflip_prob', 0) > 0:
+            transforms.append(A.VerticalFlip(p=aug_cfg.vflip_prob))
+
+        # 色調変換（個別にON/OFF可能）
+        if aug_cfg.get('brightness_prob', 0) > 0:
+            transforms.append(A.HueSaturationValue(
+                hue_shift_limit=0,
+                sat_shift_limit=0,
+                val_shift_limit=aug_cfg.get('brightness_limit', 20),
+                p=aug_cfg.brightness_prob
+            ))
+        if aug_cfg.get('saturation_prob', 0) > 0:
+            transforms.append(A.HueSaturationValue(
+                hue_shift_limit=0,
+                sat_shift_limit=aug_cfg.get('saturation_limit', 20),
+                val_shift_limit=0,
+                p=aug_cfg.saturation_prob
+            ))
+        if aug_cfg.get('hue_prob', 0) > 0:
+            transforms.append(A.HueSaturationValue(
+                hue_shift_limit=aug_cfg.get('hue_limit', 20),
+                sat_shift_limit=0,
+                val_shift_limit=0,
+                p=aug_cfg.hue_prob
+            ))
+
+        # RandomErasing (CoarseDropout in Albumentations)
+        if aug_cfg.get('random_erasing_prob', 0) > 0:
+            transforms.append(A.CoarseDropout(
+                max_holes=1,
+                max_height=int(self.img_size * aug_cfg.get('random_erasing_scale_max', 0.2)),
+                max_width=int(self.img_size * aug_cfg.get('random_erasing_scale_max', 0.2)),
+                min_holes=1,
+                min_height=int(self.img_size * aug_cfg.get('random_erasing_scale_min', 0.02)),
+                min_width=int(self.img_size * aug_cfg.get('random_erasing_scale_min', 0.02)),
+                fill_value=0,
+                p=aug_cfg.random_erasing_prob
+            ))
+
+        if transforms:
+            return A.ReplayCompose(transforms)  # ReplayComposeで同じ変換を再生可能に
+        return None
+
     def __len__(self):
         return len(self.train_df)
 
@@ -134,6 +191,13 @@ class CSIROTwoStreamDataset(Dataset):
         # Resize each patch to 768x768 (preserves more detail than resizing full 2000x1000)
         img_left = cv2.resize(img_left, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
         img_right = cv2.resize(img_right, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+
+        # Apply augmentation (training時のみ、両パッチに同じ変換を適用)
+        if self.transform is not None:
+            result_left = self.transform(image=img_left)
+            img_left = result_left['image']
+            # 同じ変換をright patchに再生
+            img_right = A.ReplayCompose.replay(result_left['replay'], image=img_right)['image']
 
         # Convert to torch tensors and normalize
         img_left = torch.from_numpy(img_left).permute(2, 0, 1).float() / 255.0   # (3, 768, 768)
