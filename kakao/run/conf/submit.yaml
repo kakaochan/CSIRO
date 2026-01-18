@@ -54,6 +54,7 @@ model:
   name: Spec1DTwoStream
   pretrained: false  # Inference: no need for ImageNet weights (use .pth weights only)
   target_ratio: false
+  target_state: false
 
 # ===== Dataset =====
 dataset:
