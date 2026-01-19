@@ -98,7 +98,7 @@ class CSIROTwoStreamDataset(Dataset):
         self.train_df = train_df
         self.mode = mode
         self.image_paths = Path(self.cfg.dir.data_dir) / 'train'
-        self.img_size = 768
+        self.img_size = cfg.dataset.img_size
         self.scaler = scaler
 
         # Augmentation (training時のみ)

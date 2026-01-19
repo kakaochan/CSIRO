@@ -23,6 +23,7 @@ scaler_path: null  # 既存scalerを使う場合はパスを指定（null=新規
 # データセット
 dataset:
   name: original
+  img_size:224
 
 # モデル設定
 model:
